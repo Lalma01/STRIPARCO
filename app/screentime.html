@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Képernyőidő – ContentBlocker</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#0f0f1a,#0f1a0f);color:#fff;
+         min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+    h1{font-size:1.8em;color:#00d4ff;margin-bottom:4px}
+    .sub{color:#666;font-size:.82em;margin-bottom:28px}
+    .ring-wrap{position:relative;width:180px;height:180px;margin:0 auto 24px}
+    svg{transform:rotate(-90deg)}
+    .ring-bg{fill:none;stroke:rgba(255,255,255,0.08);stroke-width:12}
+    .ring-bar{fill:none;stroke:url(#grad);stroke-width:12;stroke-linecap:round;
+              stroke-dasharray:502;stroke-dashoffset:502;transition:stroke-dashoffset 1s linear}
+    .ring-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .ring-time{font-size:1.6em;font-weight:700;color:#00d4ff}
+    .ring-label{font-size:.72em;color:#888;margin-top:2px}
+    .info-row{display:flex;gap:16px;margin-bottom:20px}
+    .info-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 20px;flex:1}
+    .info-card .val{font-size:1.2em;font-weight:700;color:#00ff88}
+    .info-card .lbl{font-size:.75em;color:#888;margin-top:2px}
+    .progress-bar{width:100%;height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden;margin-bottom:24px;max-width:360px}
+    .progress-fill{height:100%;background:linear-gradient(90deg,#00d4ff,#00ff88);border-radius:4px;transition:width 1s linear}
+    .limit-msg{color:#ff4444;font-size:1em;font-weight:600;margin-bottom:20px;display:none}
+    .actions{display:flex;gap:10px}
+    .btn{padding:11px 22px;border:none;border-radius:9px;font-size:.92em;font-weight:600;cursor:pointer;transition:transform .15s}
+    .btn:hover{transform:translateY(-2px)}
+    .btn-primary{background:linear-gradient(135deg,#00d4ff,#0077aa);color:#fff}
+    .btn-secondary{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.15);color:#ddd}
+    #lockOverlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;flex-direction:column;
+      align-items:center;justify-content:center;gap:12px;z-index:999}
+    #lockOverlay h2{color:#ff4444}
+    #lockOverlay input{padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.1);
+      border:1px solid rgba(255,255,255,.2);color:#fff;font-size:1em;text-align:center}
+    #lockErr{color:#ff6060;font-size:.85em;min-height:1em}
+  </style>
+</head>
+<body>
+
+<div id="lockOverlay">
+  <div style="font-size:2em">🔒</div>
+  <h2>Jelszóvédett művelet</h2>
+  <p style="color:#999;font-size:.85em">Add meg a jelszót az idő hozzáadásához</p>
+  <input type="password" id="unlockPw" placeholder="Jelszó">
+  <div id="lockErr"></div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-primary" id="unlockBtn">Feloldás</button>
+    <button class="btn btn-secondary" onclick="hideLock()">Mégse</button>
+  </div>
+</div>
+
+<h1>⏱ Képernyőidő</h1>
+<p class="sub" id="subText">Napi képernyőidő-korlát</p>
+
+<div class="ring-wrap" id="ringWrap">
+  <svg width="180" height="180" viewBox="0 0 180 180">
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#00d4ff"/>
+        <stop offset="100%" stop-color="#00ff88"/>
+      </linearGradient>
+    </defs>
+    <circle class="ring-bg" cx="90" cy="90" r="80"/>
+    <circle class="ring-bar" id="ringBar" cx="90" cy="90" r="80"/>
+  </svg>
+  <div class="ring-text">
+    <div class="ring-time" id="ringTime">–</div>
+    <div class="ring-label" id="ringLabel">maradt</div>
+  </div>
+</div>
+
+<div class="info-row">
+  <div class="info-card"><div class="val" id="usedVal">–</div><div class="lbl">Felhasznált</div></div>
+  <div class="info-card"><div class="val" id="limitVal">–</div><div class="lbl">Napi limit</div></div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+<div class="limit-msg" id="limitMsg">⚠ A napi képernyőidő-korlát elérve!</div>
+
+<div class="actions">
+  <button class="btn btn-primary" id="addTimeBtn">+ 15 perc hozzáadása</button>
+  <button class="btn btn-secondary" id="closeBtn" onclick="window.close()">Bezárás</button>
+</div>
+
+<script>
+let cfg = {}, limitReached = false;
+
+function fmt(sec) {
+  if (sec < 0) return '∞';
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+  return h>0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+              : `${m}:${String(s).padStart(2,'0')}`;
+}
+function fmtMin(sec) {
+  if (sec < 0) return 'Korlátlan';
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60);
+  return h>0 ? `${h}ó ${m}p` : `${m}p`;
+}
+
+function updateRing(remaining, used, limit) {
+  const total = limit * 60;
+  const pct = total > 0 ? Math.min(1, used / total) : 0;
+  const circ = 2 * Math.PI * 80;
+  const offset = circ * (1 - pct);
+  document.getElementById('ringBar').style.strokeDashoffset = offset;
+  document.getElementById('ringTime').textContent = remaining < 0 ? '∞' : fmt(remaining);
+  document.getElementById('ringLabel').textContent = remaining < 0 ? 'korlátlan' : 'maradt';
+  document.getElementById('usedVal').textContent = fmtMin(used);
+  document.getElementById('limitVal').textContent = limit > 0 ? limit + ' perc' : 'Korlátlan';
+  document.getElementById('progressFill').style.width = (pct * 100) + '%';
+  const lm = document.getElementById('limitMsg');
+  const closeBtn = document.getElementById('closeBtn');
+  if (remaining === 0) { 
+    lm.style.display='block'; 
+    limitReached=true; 
+    if(closeBtn) closeBtn.style.display='none';
+  } else { 
+    lm.style.display='none'; 
+    if(closeBtn) closeBtn.style.display='inline-block';
+  }
+}
+
+async function load() {
+  const st = await window.api.getScreenTimeStatus();
+  cfg = await window.api.getConfig();
+  updateRing(st.remaining, st.used, st.limit);
+}
+
+window.api.onTimeTick(({ remaining, used, limit }) => {
+  updateRing(remaining, used, limit);
+});
+
+// Add time (password-protected if set)
+document.getElementById('addTimeBtn').addEventListener('click', async () => {
+  const c = await window.api.getConfig();
+  if (c.password_protected) { showLock(); }
+  else { doAddTime(); }
+});
+
+async function doAddTime() {
+  const r = await window.api.addTime(15);
+  updateRing(r.remaining, (cfg.screen_time_limit*60 - r.remaining), cfg.screen_time_limit);
+}
+
+function showLock() { document.getElementById('lockOverlay').style.display='flex'; }
+function hideLock() { document.getElementById('lockOverlay').style.display='none'; }
+
+document.getElementById('unlockBtn').addEventListener('click', async () => {
+  const pw = document.getElementById('unlockPw').value;
+  const r = await window.api.checkPassword(pw);
+  if (r.ok) { hideLock(); doAddTime(); }
+  else { document.getElementById('lockErr').textContent='Hibás jelszó!'; }
+});
+document.getElementById('unlockPw').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('unlockBtn').click(); });
+
+load();
+</script>
+</body>
+</html>

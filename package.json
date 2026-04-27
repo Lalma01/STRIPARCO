@@ -1,0 +1,56 @@
+{
+  "name": "content-blocker",
+  "version": "1.0.0",
+  "description": "Windows NSFW tartalomszűrő",
+  "author": "Lalma01",
+  "main": "app/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --ia32 --x64"
+  },
+  "build": {
+    "appId": "com.contentblocker.app",
+    "productName": "ContentBlocker",
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    },
+    "files": [
+      "app/**/*",
+      "assets/**/*",
+      "!app/node_modules"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ],
+      "icon": "assets/icons/win/icon.ico",
+      "publisherName": "Lalma01",
+      "requestedExecutionLevel": "requireAdministrator",
+      "signAndEditExecutable": false,
+      "sign": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "installerIcon": "assets/icons/win/icon.ico",
+      "uninstallerIcon": "assets/icons/win/icon.ico",
+      "installerHeaderIcon": "assets/icons/win/icon.ico"
+    }
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-icon-builder": "^2.0.1"
+  }
+}
