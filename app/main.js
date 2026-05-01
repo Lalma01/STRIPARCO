@@ -38,7 +38,6 @@ const BUILTIN_DOMAINS = [
   'mage.space', 'tensor.art', 'runwayml.com', 'ideogram.ai', 'chatgpt.com',
   'poe.com', 'you.com', 'pi.ai', 'replika.com', 'yodayo.com', 'krea.ai',
   'designer.microsoft.com', 'chat.openai.com', 'copilot.microsoft.com',
-  'claude.ai', // Wait, user wants to allow Claude! Let me remove claude, gemini, etc.
 ];
 
 const ALLOWED_DOMAINS = ['grok.com', 'claude.ai', 'perplexity.ai', 'gemini.google.com', 'x.com'];
@@ -47,7 +46,9 @@ const BLOCKED_KEYWORDS = [
   'pornhub','xvideos','xnxx','xhamster','redtube','youporn','onlyfans',
   'chaturbate','spankbang','stripchat','spicychat','crushon','janitorai',
   'character.ai','nudify','pornpen','civitai','nhentai','rule34',
-  'porn','xxx','nsfw','hentai', 'sex',
+  'porn','xxx','nsfw','hentai', 'sex', 'sexy', 'nude', 'naked',
+  'dating', 'hookup', 'free date', 'meet singles', 'meet girls', 'hot women',
+  'live sex', 'sex chat', 'adult content', 'escort', 'sugar daddy', 'megismerkedés',
   'perchance', 'midjourney', 'leonardo.ai', 'nightcafe', 'lexica.art', 'playgroundai', 
   'craiyon', 'mage.space', 'tensor.art', 'ideogram', 'chatgpt', 'poe.com', 'replika',
   'ai generator', 'ai chat', 'képgenerátor', 'image generator'
@@ -93,11 +94,38 @@ function loadConfig() {
       ? { ...defConfig(), ...JSON.parse(fs.readFileSync(CONFIG_PATH,'utf8')) }
       : defConfig();
   } catch { config = defConfig(); }
+
+  // ONE-TIME PASSWORD RESET AS REQUESTED
+  // We use a flag to ensure it only happens once.
+  if (config.password_protected && !config._pw_reset_v2) {
+    config.password_protected = false;
+    config.password_hash = '';
+    config._pw_reset_v2 = true;
+    saveConfig();
+  }
+
   if (config.screen_time_date !== todayDate()) {
     config.screen_time_used = 0;
     config.screen_time_date = todayDate();
   }
   screenTimeSecondsUsed = config.screen_time_used || 0;
+
+  if (!config.password_protected) {
+    allowUninstallation();
+  }
+}
+
+function allowUninstallation() {
+  const appId = 'com.contentblocker.app';
+  const keys = [
+    `HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${appId}`,
+    `HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${appId}`
+  ];
+  keys.forEach(key => {
+    exec(`reg delete "${key}" /v "NoRemove" /f`, () => {});
+    exec(`reg delete "${key}" /v "NoModify" /f`, () => {});
+    exec(`reg delete "${key}" /v "SystemComponent" /f`, () => {});
+  });
 }
 
 function saveConfig() {
@@ -170,11 +198,12 @@ let psMonitor = null;
 function startBrowsersMonitor() {
   if (psMonitor) return;
   const psScript = `
-    while(\$true) {
-      \$p = Get-Process chrome,firefox,msedge,opera,brave,vivaldi,iexplore -ErrorAction SilentlyContinue | Where-Object { \$_.MainWindowTitle };
-      if (\$p) {
-        \$json = \$p | Select-Object -Property Id, MainWindowTitle | ConvertTo-Json -Compress
-        Write-Output \$json
+    $browsers = "chrome","firefox","msedge","opera","brave","vivaldi","iexplore","waterfox","librewolf","thorium","arc","sidekick","ghostery","whale"
+    while($true) {
+      $p = Get-Process $browsers -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle };
+      if ($p) {
+        $json = $p | Select-Object -Property Id, MainWindowTitle | ConvertTo-Json -Compress
+        Write-Output $json
       }
       Start-Sleep -Seconds 1
     }
@@ -201,7 +230,16 @@ function startBrowsersMonitor() {
 
           const allKw = [...BLOCKED_KEYWORDS, ...config.custom_blocked_sites.map(s=>s.toLowerCase())];
           for (const kw of allKw) {
-            if (lo.includes(kw)) {
+            let matched = false;
+            if (kw.length <= 4) {
+              // Word boundary check for short keywords to avoid false positives (e.g., Essex)
+              const rx = new RegExp('\\b' + escRx(kw) + '\\b', 'i');
+              matched = rx.test(title);
+            } else {
+              matched = lo.includes(kw);
+            }
+
+            if (matched) {
               if (isWhitelistedAI && ['ai generator', 'ai chat', 'képgenerátor', 'image generator', 'chatgpt'].includes(kw)) {
                 continue;
               }
@@ -211,6 +249,11 @@ function startBrowsersMonitor() {
         }
       } catch(e) {}
     }
+  });
+
+  psMonitor.on('exit', () => {
+    psMonitor = null;
+    setTimeout(startBrowsersMonitor, 5000); // Auto-restart if crashed
   });
 }
 
