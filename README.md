@@ -1,8 +1,8 @@
-# 🛡 ContentBlocker v1.0
+# 🛡 ContentBlocker v1.0.0
 
 [Magyar leírás lejjebb](#magyar)
 
-A lightweight, powerful Windows-based content filtering and screen time management application designed with "Vanguard-style" persistence and security.
+A lightweight, powerful Windows-based content filtering and screen time management application.
 
 ---
 
@@ -61,4 +61,4 @@ A lightweight, powerful Windows-based content filtering and screen time manageme
 - **Method**: Modifies `C:\Windows\System32\drivers\etc\hosts` and monitors process window titles.
 - **Registry**: Modifies `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall` for persistence.
 
-*Created by Lalma01*
+*Created by Lalma01 using Google Antigravity IDE*
