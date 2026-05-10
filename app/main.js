@@ -1,9 +1,9 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, Notification, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, Notification, screen, powerMonitor } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 const crypto = require('crypto');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 
 // ── Paths ──────────────────────────────────────────────────────────────────
 const HOSTS_FILE    = 'C:\\Windows\\System32\\drivers\\etc\\hosts';
@@ -62,6 +62,7 @@ let notifWindow = null, screenTimeWindow = null;
 let config = {};
 let screenTimeSecondsUsed = 0;
 let limitReached = false;
+let screenTimePaused = false;
 let lastNotifKey = '', lastNotifTime = 0;
 let watchdogProcess = null;
 
@@ -96,14 +97,7 @@ function loadConfig() {
       : defConfig();
   } catch { config = defConfig(); }
 
-  // ONE-TIME PASSWORD RESET AS REQUESTED
-  // We use a flag to ensure it only happens once.
-  if (config.password_protected && !config._pw_reset_v2) {
-    config.password_protected = false;
-    config.password_hash = '';
-    config._pw_reset_v2 = true;
-    saveConfig();
-  }
+
 
   if (config.screen_time_date !== todayDate()) {
     config.screen_time_used = 0;
@@ -149,8 +143,7 @@ function updateHosts() {
   }
   lines.push(MARKER_END);
   try {
-    const { execSync } = require('child_process');
-    try { execSync(`attrib -r "${HOSTS_FILE}"`); } catch(e) {}
+    try { require('child_process').execSync(`attrib -r "${HOSTS_FILE}"`); } catch(e) {}
     fs.writeFileSync(HOSTS_FILE, clean.trimEnd() + lines.join('\n') + '\n','utf8');
     exec('ipconfig /flushdns');
     return true;
@@ -194,9 +187,8 @@ function preventUninstallation() {
 }
 
 // ── Browser title monitor ──────────────────────────────────────────────────
-const { spawn } = require('child_process');
 let psMonitor = null;
-let psMonitorBuffer = '';  // Buffer for partial JSON lines
+let psMonitorBuffer = '';
 
 function startBrowsersMonitor() {
   if (psMonitor) return;
@@ -331,8 +323,14 @@ function updateTray() {
 }
 
 function startTimers() {
-  // Screen time tick
+  // Pause screen time on lock/sleep, resume on unlock/wake
+  powerMonitor.on('lock-screen', () => { screenTimePaused = true; });
+  powerMonitor.on('unlock-screen', () => { screenTimePaused = false; });
+  powerMonitor.on('suspend', () => { screenTimePaused = true; saveConfig(); });
+  powerMonitor.on('resume', () => { screenTimePaused = false; });
+
   setInterval(() => {
+    if (screenTimePaused) return;
     if (config.screen_time_date !== todayDate()) {
       config.screen_time_date = todayDate(); screenTimeSecondsUsed = 0; limitReached = false;
     }
