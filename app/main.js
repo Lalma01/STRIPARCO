@@ -71,6 +71,7 @@ const hashPw     = pw  => crypto.createHash('sha256').update(pw + 'cb_v1').diges
 const escRx      = s   => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const fmtTime    = sec => {
   if (sec < 0) return '∞';
+  sec = Math.floor(sec);
   const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
   return h > 0 ? `${h}ó ${m}p` : `${m}p ${String(s).padStart(2,'0')}mp`;
 };
@@ -148,7 +149,8 @@ function updateHosts() {
   }
   lines.push(MARKER_END);
   try {
-    exec(`attrib -r ${HOSTS_FILE}`);
+    const { execSync } = require('child_process');
+    try { execSync(`attrib -r "${HOSTS_FILE}"`); } catch(e) {}
     fs.writeFileSync(HOSTS_FILE, clean.trimEnd() + lines.join('\n') + '\n','utf8');
     exec('ipconfig /flushdns');
     return true;
@@ -194,6 +196,7 @@ function preventUninstallation() {
 // ── Browser title monitor ──────────────────────────────────────────────────
 const { spawn } = require('child_process');
 let psMonitor = null;
+let psMonitorBuffer = '';  // Buffer for partial JSON lines
 
 function startBrowsersMonitor() {
   if (psMonitor) return;
@@ -211,7 +214,10 @@ function startBrowsersMonitor() {
   psMonitor = spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
   
   psMonitor.stdout.on('data', (data) => {
-    const lines = data.toString().split('\n');
+    psMonitorBuffer += data.toString();
+    const lines = psMonitorBuffer.split('\n');
+    // Keep the last (potentially incomplete) line in the buffer
+    psMonitorBuffer = lines.pop() || '';
     for (let line of lines) {
       line = line.trim();
       if (!line || (!line.startsWith('[') && !line.startsWith('{'))) continue;
@@ -253,6 +259,7 @@ function startBrowsersMonitor() {
 
   psMonitor.on('exit', () => {
     psMonitor = null;
+    psMonitorBuffer = '';
     setTimeout(startBrowsersMonitor, 5000); // Auto-restart if crashed
   });
 }
@@ -270,12 +277,14 @@ function triggerBlock(title, keyword, pid) {
 
 function redirectBrowser(pid) {
   const blockedUrl = "file:///" + BLOCKED_HTML_PATH.replace(/\\/g, '/');
+  // Escape single quotes for PowerShell string literal
+  const safeUrl = blockedUrl.replace(/'/g, "''");
   const ps = `
     Add-Type -AssemblyName Microsoft.VisualBasic
     Start-Sleep -Milliseconds 50
     try { [Microsoft.VisualBasic.Interaction]::AppActivate(${pid}) } catch {}
     Start-Sleep -Milliseconds 200
-    Set-Clipboard -Value '${blockedUrl}'
+    Set-Clipboard -Value '${safeUrl}'
     $wshell = New-Object -ComObject wscript.shell
     $wshell.SendKeys('^l')
     Start-Sleep -Milliseconds 100
@@ -365,9 +374,11 @@ function lockSystem() {
 }
 
 function closeOtherPrograms() {
-  // Lezár minden ablakos programot, kivéve az Intézőt és saját magunkat
+  // Lezár minden böngészőt, de más programokat (Word, Excel stb.) békén hagy
+  const browsers = ['chrome','firefox','msedge','opera','brave','vivaldi','iexplore','waterfox','librewolf','thorium','arc','sidekick','ghostery','whale'];
+  const nameFilter = browsers.map(b => `$_.ProcessName -eq '${b}'`).join(' -or ');
   const ps = `
-    Get-Process | Where-Object { $_.MainWindowTitle -and $_.ProcessName -ne 'explorer' -and $_.Id -ne ${process.pid} } | Stop-Process -Force -ErrorAction SilentlyContinue
+    Get-Process | Where-Object { $_.MainWindowTitle -and (${nameFilter}) -and $_.Id -ne ${process.pid} } | Stop-Process -Force -ErrorAction SilentlyContinue
   `;
   exec(`powershell -NoProfile -NonInteractive -Command "${ps.replace(/\n/g, '; ')}"`);
 }
@@ -502,6 +513,11 @@ async function protectExit() {
 
 function doExit() {
   app.isQuitting = true;
+  // Kill the watchdog BEFORE quitting, so it doesn't restart us
+  if (watchdogProcess) {
+    try { process.kill(watchdogProcess.pid); } catch(e) {}
+    watchdogProcess = null;
+  }
   cleanHosts();
   app.quit();
 }
@@ -519,9 +535,15 @@ ipcMain.handle('get-config', () => {
 
 ipcMain.handle('save-config', (_, incoming) => {
   try {
+    // Password-protected settings require password to change screen_time_limit
+    if (config.password_protected && 'screen_time_limit' in incoming) {
+      if (!incoming._password || hashPw(incoming._password) !== config.password_hash) {
+        return { success:false, error:'Jelszó szükséges a képernyőidő-korlát módosításához' };
+      }
+    }
     if (incoming.custom_blocked_sites) {
        incoming.custom_blocked_sites = incoming.custom_blocked_sites
-         .map(s => s.toLowerCase().replace(/[\\s\\r\\n]/g, '').trim())
+         .map(s => s.toLowerCase().replace(/[\s\r\n]/g, '').trim())
          .filter(s => s.length > 1 && s.length < 100);
     }
     const allowedKeys = ['screen_time_limit','auto_start','custom_blocked_sites'];
@@ -539,10 +561,20 @@ ipcMain.handle('check-password', (_, pw) => {
   return { ok: hashPw(pw) === config.password_hash };
 });
 
-ipcMain.handle('set-password', (_, pw) => {
+ipcMain.handle('set-password', (_, data) => {
+  // If password already set, require old password to change it
+  if (config.password_protected) {
+    const oldPw = typeof data === 'object' ? data.oldPassword : null;
+    if (!oldPw || hashPw(oldPw) !== config.password_hash) {
+      return { success:false, error:'Hibás régi jelszó' };
+    }
+  }
+  const newPw = typeof data === 'object' ? data.newPassword : data;
+  if (!newPw || newPw.length < 4) return { success:false, error:'Min. 4 karakter szükséges' };
   config.password_protected = true;
-  config.password_hash = hashPw(pw);
+  config.password_hash = hashPw(newPw);
   saveConfig();
+  preventUninstallation();
   return { success:true };
 });
 
@@ -564,15 +596,25 @@ ipcMain.handle('get-screentime-status', () => ({
   limitReached,
 }));
 
-ipcMain.handle('add-time', (_, mins) => {
-  screenTimeSecondsUsed = Math.max(0, screenTimeSecondsUsed - mins * 60);
+ipcMain.handle('add-time', (_, data) => {
+  // Password protection: require password if set
+  if (config.password_protected) {
+    const pw = typeof data === 'object' ? data.password : null;
+    if (!pw || hashPw(pw) !== config.password_hash) {
+      return { success:false, error:'Hibás jelszó' };
+    }
+  }
+  const mins = typeof data === 'object' ? data.mins : data;
+  // Validate minutes: must be a positive number, max 120 minutes at a time
+  const safeMins = Math.min(120, Math.max(0, parseInt(mins) || 0));
+  screenTimeSecondsUsed = Math.max(0, screenTimeSecondsUsed - safeMins * 60);
   limitReached = false;
   saveConfig();
   if (screenTimeWindow && !screenTimeWindow.isDestroyed()) {
     screenTimeWindow.setKiosk(false);
     screenTimeWindow.setAlwaysOnTop(false);
   }
-  return { remaining: getRemaining() };
+  return { success:true, remaining: getRemaining() };
 });
 
 ipcMain.handle('close-notification', () => {
@@ -601,7 +643,7 @@ else {
     loadConfig();
     updateHosts();
     if (config.auto_start) setAutoStart(true);
-    preventUninstallation();
+    if (config.password_protected) preventUninstallation();
     createTray();
     
     if (!process.argv.includes('--hidden')) {
@@ -611,9 +653,9 @@ else {
     startTimers();
     updateTray();
     
-    // Start the Watchdog process
+    // Start the Watchdog process – pass --hidden so restarts are silent
     const watchdogPath = path.join(__dirname, 'watchdog.js');
-    watchdogProcess = spawn(process.execPath, [watchdogPath, process.execPath, process.pid.toString()], {
+    watchdogProcess = spawn(process.execPath, [watchdogPath, process.execPath, '--hidden', process.pid.toString()], {
       detached: true,
       stdio: 'ignore',
       env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }

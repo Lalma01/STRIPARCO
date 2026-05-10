@@ -167,10 +167,21 @@ document.getElementById('setPwBtn').addEventListener('click', async () => {
   const p2 = document.getElementById('confirmPw').value;
   if (p1.length < 4) { showMsg('pwMsg','Min. 4 karakter!',true); return; }
   if (p1 !== p2) { showMsg('pwMsg','A két jelszó nem egyezik!',true); return; }
-  await window.api.setPassword(p1);
-  cfg.password_protected = true;
-  showMsg('pwMsg','Jelszó sikeresen beállítva!',false);
-  document.getElementById('removePwBtn').style.display = 'inline-block';
+  let data = { newPassword: p1 };
+  // If password already set, ask for old password
+  if (cfg.password_protected) {
+    const oldPw = prompt('Add meg a jelenlegi jelszót a módosításhoz:');
+    if (!oldPw) return;
+    data.oldPassword = oldPw;
+  }
+  const r = await window.api.setPassword(data);
+  if (r.success) {
+    cfg.password_protected = true;
+    showMsg('pwMsg','Jelszó sikeresen beállítva!',false);
+    document.getElementById('removePwBtn').style.display = 'inline-block';
+  } else {
+    showMsg('pwMsg', r.error || 'Hiba történt!', true);
+  }
 });
 
 // Remove password
@@ -185,8 +196,15 @@ document.getElementById('removePwBtn').addEventListener('click', async () => {
 // Save screen time
 document.getElementById('saveTimeBtn').addEventListener('click', async () => {
   const v = parseInt(document.getElementById('screenLimit').value)||0;
-  const r = await window.api.saveConfig({ screen_time_limit: v });
-  cfg.screen_time_limit = v;
+  let payload = { screen_time_limit: v };
+  // If password-protected, ask for password to change screen time limit
+  if (cfg.password_protected) {
+    const pw = prompt('Add meg a jelszót a képernyőidő-korlát módosításához:');
+    if (!pw) return;
+    payload._password = pw;
+  }
+  const r = await window.api.saveConfig(payload);
+  if (r.success) cfg.screen_time_limit = v;
   showMsg('timeMsg', r.success ? 'Mentve!' : ('Hiba: '+r.error), !r.success);
 });
 

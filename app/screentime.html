@@ -85,7 +85,7 @@
 </div>
 
 <script>
-let cfg = {}, limitReached = false;
+let cfg = {}, limitReached = false, cachedPw = null;
 
 function fmt(sec) {
   if (sec < 0) return '∞';
@@ -136,11 +136,17 @@ window.api.onTimeTick(({ remaining, used, limit }) => {
 document.getElementById('addTimeBtn').addEventListener('click', async () => {
   const c = await window.api.getConfig();
   if (c.password_protected) { showLock(); }
-  else { doAddTime(); }
+  else { doAddTime(null); }
 });
 
-async function doAddTime() {
-  const r = await window.api.addTime(15);
+async function doAddTime(pw) {
+  const data = pw ? { password: pw, mins: 15 } : 15;
+  const r = await window.api.addTime(data);
+  if (r.success === false) {
+    document.getElementById('lockErr').textContent = r.error || 'Hiba történt!';
+    showLock();
+    return;
+  }
   updateRing(r.remaining, (cfg.screen_time_limit*60 - r.remaining), cfg.screen_time_limit);
 }
 
@@ -150,7 +156,7 @@ function hideLock() { document.getElementById('lockOverlay').style.display='none
 document.getElementById('unlockBtn').addEventListener('click', async () => {
   const pw = document.getElementById('unlockPw').value;
   const r = await window.api.checkPassword(pw);
-  if (r.ok) { hideLock(); doAddTime(); }
+  if (r.ok) { hideLock(); doAddTime(pw); }
   else { document.getElementById('lockErr').textContent='Hibás jelszó!'; }
 });
 document.getElementById('unlockPw').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('unlockBtn').click(); });

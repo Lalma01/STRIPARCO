@@ -92,16 +92,29 @@
   <script>
     const bar = document.getElementById('bar');
     let timer = 9;
-    const tick = setInterval(() => {
-      timer--;
-      bar.style.width = (timer / 9 * 100) + '%';
-      if (timer <= 0) { clearInterval(tick); window.api.closeNotification(); }
-    }, 1000);
+    let tick = null;
 
-    document.getElementById('closeBtn').addEventListener('click', () => window.api.closeNotification());
+    function startCountdown() {
+      if (tick) clearInterval(tick);
+      timer = 9;
+      bar.style.width = '100%';
+      tick = setInterval(() => {
+        timer--;
+        bar.style.width = (timer / 9 * 100) + '%';
+        if (timer <= 0) { clearInterval(tick); tick = null; window.api.closeNotification(); }
+      }, 1000);
+    }
+
+    startCountdown();
+
+    document.getElementById('closeBtn').addEventListener('click', () => {
+      if (tick) clearInterval(tick);
+      window.api.closeNotification();
+    });
 
     window.api.onNotification(({ title, keyword }) => {
       document.getElementById('matchedKw').textContent = 'Indok: ' + keyword;
+      startCountdown(); // Reset timer on new notification
     });
   </script>
 </body>
