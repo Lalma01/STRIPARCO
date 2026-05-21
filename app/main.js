@@ -324,11 +324,20 @@ function updateTray() {
 
 function startTimers() {
   // Pause screen time on lock/sleep, resume on unlock/wake
-  powerMonitor.on('lock-screen', () => { screenTimePaused = true; saveConfig(); });
-  powerMonitor.on('unlock-screen', () => { screenTimePaused = false; });
-  powerMonitor.on('suspend', () => { screenTimePaused = true; saveConfig(); });
-  powerMonitor.on('resume', () => { screenTimePaused = false; });
-  app.on('session-end', () => { saveConfig(); });
+  // Register power monitor events only once to avoid duplicate listeners
+  if (!global.__powerMonitorInitialized) {
+    powerMonitor.on('lock-screen', () => { screenTimePaused = true; saveConfig(); });
+    powerMonitor.on('unlock-screen', () => { screenTimePaused = false; });
+    powerMonitor.on('suspend', () => { screenTimePaused = true; saveConfig(); });
+    powerMonitor.on('resume', () => { screenTimePaused = false; });
+    global.__powerMonitorInitialized = true;
+  }
+  // Ensure config is saved and app exits gracefully on user session end (logout or shutdown)
+  app.on('session-end', () => {
+    saveConfig();
+    // Attempt to quit the app; if already quitting, this is a no-op
+    if (!app.isQuitting) app.quit();
+  });
 
   setInterval(() => {
     if (screenTimePaused) return;
@@ -657,6 +666,9 @@ else {
     startTimers();
     updateTray();
     
+    // Add signal handler for graceful termination (e.g., system shutdown)
+    process.on('SIGTERM', () => { saveConfig(); });
+    
     // Start the Watchdog process – pass --hidden so restarts are silent
     const watchdogPath = path.join(__dirname, 'watchdog.js');
     watchdogProcess = spawn(process.execPath, [watchdogPath, process.execPath, '--hidden', process.pid.toString()], {
@@ -668,6 +680,7 @@ else {
   });
 
   app.on('window-all-closed', e => e.preventDefault());
+  app.on('quit', () => { saveConfig(); });
   app.on('before-quit', () => { 
     app.isQuitting = true; 
     saveConfig(); 
