@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
   getConfig:           ()       => ipcRenderer.invoke('get-config'),
+  getVersion:          ()       => ipcRenderer.invoke('get-version'),
   saveConfig:          (cfg)    => ipcRenderer.invoke('save-config', cfg),
   checkPassword:       (pw)     => ipcRenderer.invoke('check-password', pw),
   setPassword:         (pw)     => ipcRenderer.invoke('set-password', pw),

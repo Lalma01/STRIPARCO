@@ -62,11 +62,13 @@
     <button class="btn btn-secondary" id="screenTimeBtn">⏱ Képernyőidő</button>
   </div>
 
-  <div class="footer">ContentBlocker v1.0.2 · Minden szűrés helyi · Nincs adatküldés</div>
+  <div class="footer">ContentBlocker v<span id="appVersion">1.0.2</span> · Minden szűrés helyi · Nincs adatküldés</div>
 
   <script>
     async function load() {
       const cfg = await window.api.getConfig();
+      const ver = await window.api.getVersion();
+      document.getElementById('appVersion').textContent = ver;
       document.getElementById('blockedCount').textContent = cfg.blocked_count || 0;
       const pw = document.getElementById('pwStatus');
       pw.textContent = cfg.password_protected ? 'Beállítva' : 'Nincs';

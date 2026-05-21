@@ -324,10 +324,11 @@ function updateTray() {
 
 function startTimers() {
   // Pause screen time on lock/sleep, resume on unlock/wake
-  powerMonitor.on('lock-screen', () => { screenTimePaused = true; });
+  powerMonitor.on('lock-screen', () => { screenTimePaused = true; saveConfig(); });
   powerMonitor.on('unlock-screen', () => { screenTimePaused = false; });
   powerMonitor.on('suspend', () => { screenTimePaused = true; saveConfig(); });
   powerMonitor.on('resume', () => { screenTimePaused = false; });
+  app.on('session-end', () => { saveConfig(); });
 
   setInterval(() => {
     if (screenTimePaused) return;
@@ -335,13 +336,13 @@ function startTimers() {
       config.screen_time_date = todayDate(); screenTimeSecondsUsed = 0; limitReached = false;
     }
     screenTimeSecondsUsed++;
-    if (screenTimeSecondsUsed % 30 === 0) saveConfig();
+    if (screenTimeSecondsUsed % 10 === 0) saveConfig();
     const rem = getRemaining();
     updateTray();
     
-    if (rem === 15 * 60 || (rem < 15 * 60 && rem > 15 * 60 - 3 && screenTimeSecondsUsed % 30 === 1)) showTimeNotif('15 perc maradt!');
-    if (rem === 5 * 60 || (rem < 5 * 60 && rem > 5 * 60 - 3 && screenTimeSecondsUsed % 30 === 1)) showTimeNotif('5 perc maradt!');
-    if (rem === 60 || (rem < 60 && rem > 57 && screenTimeSecondsUsed % 30 === 1)) showTimeNotif('1 perc maradt!');
+    if (rem === 15 * 60 || (rem < 15 * 60 && rem > 15 * 60 - 3 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif('15 perc maradt!');
+    if (rem === 5 * 60 || (rem < 5 * 60 && rem > 5 * 60 - 3 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif('5 perc maradt!');
+    if (rem === 60 || (rem < 60 && rem > 57 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif('1 perc maradt!');
     
     if (rem === 0 && !limitReached) { limitReached = true; onLimitReached(); }
     if (limitReached) closeOtherPrograms();
@@ -529,6 +530,11 @@ ipcMain.handle('get-config', () => {
   safe.screen_time_remaining = getRemaining();
   safe.screen_time_used_seconds = screenTimeSecondsUsed;
   return safe;
+});
+
+ipcMain.handle('get-version', () => {
+  const pkg = require(path.join(__dirname, '..', 'package.json'));
+  return pkg.version;
 });
 
 ipcMain.handle('save-config', (_, incoming) => {
