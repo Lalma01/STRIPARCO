@@ -1,6 +1,6 @@
 {
   "name": "content-blocker",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Windows NSFW / AI content filter & screen time blocker",
   "author": "Lalma01",
   "main": "app/main.js",

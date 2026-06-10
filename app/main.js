@@ -33,29 +33,41 @@ const BUILTIN_DOMAINS = [
   // NSFW AI Image generators
   'civitai.com','pornpen.ai','aiporncreator.ai','nudify.online',
   'seduced.ai','promptchan.ai','undress.app','deepnude.cc','nsfwgenerator.ai',
-  // AI Chat & Image Generators (Blocked)
+  'replika.com','yodayo.com',
+  // AI Image generators (non-NSFW chatbots are intentionally NOT blocked)
   'perchance.org', 'midjourney.com', 'leonardo.ai', 'nightcafe.studio',
   'lexica.art', 'playgroundai.com', 'craiyon.com', 'stablediffusionweb.com',
-  'mage.space', 'tensor.art', 'runwayml.com', 'ideogram.ai', 'chatgpt.com',
-  'poe.com', 'you.com', 'pi.ai', 'replika.com', 'yodayo.com', 'krea.ai',
-  'designer.microsoft.com', 'chat.openai.com', 'copilot.microsoft.com',
+  'mage.space', 'tensor.art', 'runwayml.com', 'ideogram.ai', 'krea.ai',
+  'designer.microsoft.com',
 ];
 
-const ALLOWED_DOMAINS = ['grok.com', 'claude.ai', 'perplexity.ai', 'gemini.google.com', 'x.com'];
+// Mainstream AI assistants that must stay accessible (never blocked / never written to hosts).
+const ALLOWED_DOMAINS = [
+  'grok.com', 'claude.ai', 'perplexity.ai', 'gemini.google.com', 'x.com',
+  'chatgpt.com', 'chat.openai.com', 'openai.com', 'copilot.microsoft.com',
+  'poe.com', 'you.com', 'pi.ai', 'bard.google.com',
+];
 
-const BLOCKED_KEYWORDS = [
+// Strong keywords: a single match blocks (unambiguous porn / NSFW-AI / image-generator brands & terms).
+const STRONG_KEYWORDS = [
   'pornhub','xvideos','xnxx','xhamster','redtube','youporn','onlyfans',
   'chaturbate','spankbang','stripchat','spicychat','crushon','janitorai',
   'character.ai','nudify','pornpen','civitai','nhentai','rule34',
-  'porn','xxx','nsfw','hentai', 'sex', 'sexy', 'nude', 'naked',
-  'dating', 'hookup', 'free date', 'meet singles', 'meet girls', 'hot women',
-  'live sex', 'sex chat', 'adult content', 'escort', 'sugar daddy', 'megismerkedés',
-  'perchance', 'midjourney', 'leonardo.ai', 'nightcafe', 'lexica.art', 'playgroundai',
-  'craiyon', 'mage.space', 'tensor.art', 'ideogram', 'chatgpt', 'poe.com', 'replika',
-  'ai generator', 'ai chat', 'képgenerátor', 'image generator'
+  'porn','xxx','nsfw','hentai','live sex','sex chat','adult content',
+  'replika','candy.ai','dreamgf','dreambf','muah.ai','soulgen','kindroid',
+  'deepnude','undress','seduced.ai','promptchan','aiporncreator','nsfwgenerator',
+  'perchance','midjourney','leonardo.ai','nightcafe','lexica.art','playgroundai',
+  'craiyon','mage.space','tensor.art','ideogram','image generator','képgenerátor'
 ];
 
-const WHITELIST_AI_KEYWORDS = ['grok', 'claude', 'perplexity', 'gemini'];
+// Weak/ambiguous keywords: block only when at least two of them appear in the same title.
+const WEAK_KEYWORDS = [
+  'sex','sexy','nude','naked','dating','hookup','free date','meet singles',
+  'meet girls','hot women','escort','sugar daddy','megismerkedés'
+];
+
+// Titles of these mainstream AI assistants are never blocked.
+const WHITELIST_AI_KEYWORDS = ['grok', 'claude', 'perplexity', 'gemini', 'chatgpt', 'copilot', 'openai', 'pi.ai', 'you.com'];
 
 // ── Main-process translations ──────────────────────────────────────────────
 const MSG = {
@@ -246,6 +258,26 @@ function deleteUninstallerExe() {
 let psMonitor = null;
 let psMonitorBuffer = '';
 
+function titleMatches(kw, title, lo) {
+  // Word-boundary match for short keywords to avoid false positives (e.g. "Essex" → "sex").
+  if (kw.length <= 4) return new RegExp('\\b' + escRx(kw) + '\\b', 'i').test(title);
+  return lo.includes(kw);
+}
+
+// Returns the matched reason string if the title should be blocked, otherwise null.
+function evaluateTitle(title) {
+  const lo = title.toLowerCase();
+  // Never block mainstream AI assistants (Claude, Gemini, ChatGPT, Grok, Perplexity, Copilot…).
+  for (const w of WHITELIST_AI_KEYWORDS) if (lo.includes(w)) return null;
+  // User-defined custom sites are treated as strong (single match blocks).
+  const strong = [...STRONG_KEYWORDS, ...config.custom_blocked_sites.map(s => s.toLowerCase())];
+  for (const kw of strong) if (titleMatches(kw, title, lo)) return kw;
+  // Ambiguous keywords only block when at least two of them appear together.
+  const weakHits = WEAK_KEYWORDS.filter(kw => titleMatches(kw, title, lo));
+  if (weakHits.length >= 2) return weakHits.join(' + ');
+  return null;
+}
+
 function startBrowsersMonitor() {
   if (psMonitor) return;
   const psScript = `
@@ -274,32 +306,8 @@ function startBrowsersMonitor() {
         if (!Array.isArray(processes)) processes = [processes];
         for (const p of processes) {
           if (!p || !p.MainWindowTitle) continue;
-          const title = p.MainWindowTitle;
-          const lo = title.toLowerCase();
-          
-          let isWhitelistedAI = false;
-          for (const w of WHITELIST_AI_KEYWORDS) {
-            if (lo.includes(w)) { isWhitelistedAI = true; break; }
-          }
-
-          const allKw = [...BLOCKED_KEYWORDS, ...config.custom_blocked_sites.map(s=>s.toLowerCase())];
-          for (const kw of allKw) {
-            let matched = false;
-            if (kw.length <= 4) {
-              // Word boundary check for short keywords to avoid false positives (e.g., Essex)
-              const rx = new RegExp('\\b' + escRx(kw) + '\\b', 'i');
-              matched = rx.test(title);
-            } else {
-              matched = lo.includes(kw);
-            }
-
-            if (matched) {
-              if (isWhitelistedAI && ['ai generator', 'ai chat', 'képgenerátor', 'image generator', 'chatgpt'].includes(kw)) {
-                continue;
-              }
-              triggerBlock(title, kw, p.Id); return;
-            }
-          }
+          const hit = evaluateTitle(p.MainWindowTitle);
+          if (hit) { triggerBlock(p.MainWindowTitle, hit, p.Id); return; }
         }
       } catch(e) {}
     }

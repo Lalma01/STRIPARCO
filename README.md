@@ -9,7 +9,8 @@ A lightweight, powerful Windows-based content filtering and screen time manageme
 ## 🇬🇧 English Documentation
 
 ### 🌟 Features
-- **NSFW & AI Blocker**: Automatically blocks thousands of adult websites and AI-powered chat/image generator services using system-level DNS/Hosts filtering.
+- **NSFW & AI Blocker**: Blocks adult websites, NSFW AI companion/chat sites (e.g. JanitorAI, CrushOn, SpicyChat) and AI image generators using system-level Hosts filtering. Mainstream AI chatbots are intentionally left accessible.
+- **Smart keyword filtering**: Unambiguous terms block on a single match, while ambiguous words (e.g. "escort", "dating") only trigger when at least two of them appear together — minimizing false positives.
 - **Screen Time Management**: Set a daily limit. Once the limit is reached, the system is locked, and all other applications are automatically closed.
 - **Vanguard-Style Persistence**:
   - **Self-Repairing**: Automatically restores the blocklist every 5 minutes if tampered with.
@@ -17,7 +18,7 @@ A lightweight, powerful Windows-based content filtering and screen time manageme
   - **Hidden & Protected**: Does not appear in the standard "Apps & Features" list and disables uninstallation through the Control Panel.
   - **Password Protected Exit**: Requires an administrator password to close the protection.
 - **Browser Monitoring**: Real-time monitoring of browser window titles to block specific keywords and AI tools.
-- **Allowlisted AI**: Selected AI assistants (Claude.ai, Grok.com, Perplexity.ai, Gemini) stay accessible while other AI chat/image generators are blocked.
+- **Allowlisted AI**: Mainstream AI assistants (ChatGPT, Claude, Gemini, Grok, Perplexity, Copilot, Poe, Pi, You.com) stay accessible; only NSFW AI companions and AI image generators are blocked.
 - **Bilingual UI**: Switchable English / Hungarian interface (auto-detected on first run).
 - **Privacy First**: No data is sent to external servers. All filtering happens locally.
 
@@ -37,7 +38,8 @@ A lightweight, powerful Windows-based content filtering and screen time manageme
 ## 🇭🇺 Magyar Dokumentáció
 
 ### 🌟 Funkciók
-- **NSFW és AI blokkoló**: Több ezer felnőtt tartalmú weboldal és AI csevegő/képgeneráló szolgáltatás automatikus tiltása rendszerszintű szűréssel.
+- **NSFW és AI blokkoló**: Felnőtt tartalmú weboldalak, NSFW AI „barátnő"/chat oldalak (pl. JanitorAI, CrushOn, SpicyChat) és AI képgenerátorok tiltása rendszerszintű szűréssel. A normál AI chatbotok szándékosan elérhetők maradnak.
+- **Okos kulcsszó-szűrés**: Az egyértelmű kifejezések egyetlen találatra is blokkolnak, míg a kétértelmű szavak (pl. „escort", „dating") csak akkor, ha legalább kettő együtt fordul elő — így minimalizálva a téves találatokat.
 - **Képernyőidő kezelés**: Napi időkeret állítható be. Ha az idő lejár, a program zárolja a számítógépet és automatikusan bezárja az összes többi futó programot.
 - **Vanguard-stílusú védelem**:
   - **Öngyógyító**: 5 percenként ellenőrzi és visszaállítja a tiltólistát, ha valaki módosítaná.
@@ -45,7 +47,7 @@ A lightweight, powerful Windows-based content filtering and screen time manageme
   - **Rejtett és védett**: Nem látszik a "Gépház -> Alkalmazások" listában, és a Vezérlőpultban sem távolítható el.
   - **Jelszóval védett leállítás**: Csak jelszó megadásával lehet kikapcsolni a védelmet.
 - **Böngésző figyelés**: Valós időben figyeli a böngészők címsorát a tiltott kulcsszavak kiszűréséhez.
-- **Engedélyezett AI**: Kiválasztott AI asszisztensek (Claude.ai, Grok.com, Perplexity.ai, Gemini) elérhetők maradnak, miközben a többi AI chat/képgenerátor tiltott.
+- **Engedélyezett AI**: A bevett AI asszisztensek (ChatGPT, Claude, Gemini, Grok, Perplexity, Copilot, Poe, Pi, You.com) elérhetők maradnak; csak az NSFW AI „barátnő" oldalak és AI képgenerátorok tiltottak.
 - **Kétnyelvű felület**: Váltható angol / magyar nyelv (első indításkor automatikus felismerés).
 - **Adatvédelem**: Semmilyen adatot nem küld külső szerverre, minden szűrés helyben történik.
 
