@@ -1,4 +1,4 @@
-# 🛡 ContentBlocker v1.0.0
+# 🛡 ContentBlocker
 
 [Magyar leírás lejjebb](#magyar)
 
@@ -17,15 +17,18 @@ A lightweight, powerful Windows-based content filtering and screen time manageme
   - **Hidden & Protected**: Does not appear in the standard "Apps & Features" list and disables uninstallation through the Control Panel.
   - **Password Protected Exit**: Requires an administrator password to close the protection.
 - **Browser Monitoring**: Real-time monitoring of browser window titles to block specific keywords and AI tools.
+- **Allowlisted AI**: Selected AI assistants (Claude.ai, Grok.com, Perplexity.ai, Gemini) stay accessible while other AI chat/image generators are blocked.
+- **Bilingual UI**: Switchable English / Hungarian interface (auto-detected on first run).
 - **Privacy First**: No data is sent to external servers. All filtering happens locally.
 
 ### 🚀 Installation
 1. Download the latest installer from the `dist` folder.
-2. Run `ContentBlocker Setup 1.0.0.exe` as Administrator.
+2. Run `ContentBlocker Setup *.exe` as Administrator.
 3. The app will automatically start in hidden mode (Tray icon).
 
 ### ⚙ Settings
 - Access settings via the Tray icon (Right-click).
+- Choose the interface language (English / Hungarian).
 - Set an administrator password to prevent unauthorized changes.
 - Add custom domains or keywords to the blocklist.
 
@@ -42,15 +45,18 @@ A lightweight, powerful Windows-based content filtering and screen time manageme
   - **Rejtett és védett**: Nem látszik a "Gépház -> Alkalmazások" listában, és a Vezérlőpultban sem távolítható el.
   - **Jelszóval védett leállítás**: Csak jelszó megadásával lehet kikapcsolni a védelmet.
 - **Böngésző figyelés**: Valós időben figyeli a böngészők címsorát a tiltott kulcsszavak kiszűréséhez.
+- **Engedélyezett AI**: Kiválasztott AI asszisztensek (Claude.ai, Grok.com, Perplexity.ai, Gemini) elérhetők maradnak, miközben a többi AI chat/képgenerátor tiltott.
+- **Kétnyelvű felület**: Váltható angol / magyar nyelv (első indításkor automatikus felismerés).
 - **Adatvédelem**: Semmilyen adatot nem küld külső szerverre, minden szűrés helyben történik.
 
 ### 🚀 Telepítés
 1. Töltsd le a legfrissebb telepítőt a `dist` mappából.
-2. Futtasd a `ContentBlocker Setup 1.0.0.exe` fájlt Rendszergazdaként.
+2. Futtasd a `ContentBlocker Setup *.exe` fájlt Rendszergazdaként.
 3. A program automatikusan elindul rejtett módban (Tálca ikon).
 
 ### ⚙ Beállítások
 - A beállításokat a Tálca ikonra (Jobb klikk) kattintva érheted el.
+- Válaszd ki a felület nyelvét (angol / magyar).
 - Állíts be egy adminisztrátori jelszót, hogy mások ne tudják módosítani a szűrést.
 - Adj hozzá egyéni domaineket vagy kulcsszavakat a tiltólistához.
 

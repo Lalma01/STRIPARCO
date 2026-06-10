@@ -2,7 +2,7 @@
 <html lang="hu">
 <head>
   <meta charset="UTF-8">
-  <title>Tartalom Blokkolva</title>
+  <title id="pgTitle">Tartalom Blokkolva</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -55,8 +55,17 @@
 </head>
 <body>
   <div class="icon">🚫</div>
-  <h1>Tartalom Blokkolva</h1>
-  <p>A kért weboldal sérti a ContentBlocker biztonsági házirendjét (NSFW tartalom), ezért a hozzáférést letiltottuk.</p>
-  <div class="shield">ContentBlocker Aktív Védelem</div>
+  <h1 id="h1">Tartalom Blokkolva</h1>
+  <p id="p">A kért weboldal sérti a ContentBlocker biztonsági házirendjét (NSFW tartalom), ezért a hozzáférést letiltottuk.</p>
+  <div class="shield" id="shield">ContentBlocker Aktív Védelem</div>
+  <script>
+    if (!(navigator.language || '').toLowerCase().startsWith('hu')) {
+      document.documentElement.lang = 'en';
+      document.getElementById('pgTitle').textContent = 'Content Blocked';
+      document.getElementById('h1').textContent = 'Content Blocked';
+      document.getElementById('p').textContent = 'The requested website violates the ContentBlocker security policy (NSFW content), so access has been blocked.';
+      document.getElementById('shield').textContent = 'ContentBlocker Active Protection';
+    }
+  </script>
 </body>
 </html>

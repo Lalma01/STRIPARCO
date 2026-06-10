@@ -80,16 +80,21 @@
     <button class="close-btn" id="closeBtn">✕</button>
     <div class="header">
       <span class="icon">🚫</span>
-      <span class="title">TARTALOM BLOKKOLVA</span>
+      <span class="title" data-i18n="nt_title">TARTALOM BLOKKOLVA</span>
     </div>
     <div class="body">
-      A böngésző tiltott tartalmat jelenített meg.<br>
+      <span data-i18n="nt_body">A böngésző tiltott tartalmat jelenített meg.</span><br>
       <strong id="matchedKw" class="reason">–</strong>
     </div>
     <div class="progress"><div class="progress-bar" id="bar"></div></div>
   </div>
 
+  <script src="i18n.js"></script>
   <script>
+    (async () => {
+      try { const cfg = await window.api.getConfig(); window.setLang(cfg.lang); window.applyI18n(); } catch(e) {}
+    })();
+
     const bar = document.getElementById('bar');
     let timer = 9;
     let tick = null;
@@ -113,7 +118,7 @@
     });
 
     window.api.onNotification(({ title, keyword }) => {
-      document.getElementById('matchedKw').textContent = 'Indok: ' + keyword;
+      document.getElementById('matchedKw').textContent = window.t('nt_reason') + keyword;
       startCountdown(); // Reset timer on new notification
     });
   </script>

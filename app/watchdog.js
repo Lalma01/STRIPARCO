@@ -1,31 +1,34 @@
+'use strict';
 const { spawn } = require('child_process');
+const fs = require('fs');
 
-// A watchdog argumentumként kapja meg a fő program elérési útját, opcionális flag-eket, és a folyamat azonosítóját (PID)
+// Args: <exePath> [extra flags...] <pidFile>
 const args = process.argv.slice(2);
 if (args.length < 2) process.exit(1);
 
 const exePath = args[0];
-const mainPidStr = args[args.length - 1]; // PID is always the last argument
-const mainPid = parseInt(mainPidStr, 10);
-const extraArgs = args.slice(1, -1); // Any flags between exePath and PID (e.g., --hidden)
+const pidFile = args[args.length - 1];
+const extraArgs = args.slice(1, -1); // flags between exePath and pidFile (e.g. --hidden)
 
-if (!exePath || isNaN(mainPid)) process.exit(1);
+if (!exePath || !pidFile) process.exit(1);
+
+function mainAlive() {
+  try {
+    const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
+    if (!pid) return false;
+    // Signal 0 only checks existence, it does not terminate the process.
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 setInterval(() => {
-  try {
-    // A process.kill 0-ás szignállal csak azt ellenőrzi, hogy a folyamat létezik-e.
-    // Nem állítja le a folyamatot. Ha nem létezik, hibát dob.
-    process.kill(mainPid, 0);
-  } catch (e) {
-    // Ha ide jutunk, a fő program leállt (összeomlott vagy kilőtték a Feladatkezelőben).
-    // Újraindítjuk a programot a megőrzött flag-ekkel (pl. --hidden).
-    const child = spawn(exePath, extraArgs, {
-      detached: true,
-      stdio: 'ignore'
-    });
-    child.unref(); // Elengedjük az új folyamatot, hogy függetlenül fusson
-
-    // A watchdog befejezi a működését, mert az új fő program majd indít magának egy új watchdogot.
-    process.exit(0);
-  }
-}, 2000); // 2 másodpercenként ellenőriz
+  if (mainAlive()) return;
+  // Main process is gone (crashed or killed in Task Manager) → relaunch it with the kept flags.
+  const child = spawn(exePath, extraArgs, { detached: true, stdio: 'ignore' });
+  child.unref();
+  // The freshly started main spawns its own watchdog, so this one can stop.
+  process.exit(0);
+}, 1000);

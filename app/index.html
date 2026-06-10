@@ -28,64 +28,66 @@
 </head>
 <body>
   <h1>🛡 ContentBlocker</h1>
-  <p class="sub">Aktívan védi a böngészőt a nem kívánt tartalmaktól</p>
+  <p class="sub" data-i18n="idx_sub">Aktívan védi a böngészőt a nem kívánt tartalmaktól</p>
 
   <div class="grid">
     <div class="card">
-      <div class="card-label">Állapot</div>
-      <div class="card-value green badge-active"><span class="dot"></span>Aktív</div>
+      <div class="card-label" data-i18n="lbl_status">Állapot</div>
+      <div class="card-value green badge-active"><span class="dot"></span><span data-i18n="val_active">Aktív</span></div>
     </div>
     <div class="card">
-      <div class="card-label">Blokkolt oldalak</div>
+      <div class="card-label" data-i18n="lbl_blocked">Blokkolt oldalak</div>
       <div class="card-value" id="blockedCount">–</div>
     </div>
     <div class="card">
-      <div class="card-label">Jelszóvédelem</div>
+      <div class="card-label" data-i18n="lbl_pw">Jelszóvédelem</div>
       <div class="card-value" id="pwStatus">–</div>
     </div>
     <div class="card">
-      <div class="card-label">Képernyőidő</div>
+      <div class="card-label" data-i18n="lbl_screentime">Képernyőidő</div>
       <div class="card-value" id="screenTime">–</div>
     </div>
     <div class="card">
-      <div class="card-label">Automatikus indítás</div>
+      <div class="card-label" data-i18n="lbl_autostart">Automatikus indítás</div>
       <div class="card-value" id="autoStart">–</div>
     </div>
     <div class="card">
-      <div class="card-label">Egyéni szűrők</div>
+      <div class="card-label" data-i18n="lbl_custom">Egyéni szűrők</div>
       <div class="card-value" id="customCount">–</div>
     </div>
   </div>
 
   <div class="actions">
-    <button class="btn btn-primary" id="settingsBtn">⚙ Beállítások</button>
-    <button class="btn btn-secondary" id="screenTimeBtn">⏱ Képernyőidő</button>
+    <button class="btn btn-primary" id="settingsBtn" data-i18n="btn_settings">⚙ Beállítások</button>
+    <button class="btn btn-secondary" id="screenTimeBtn" data-i18n="btn_screentime">⏱ Képernyőidő</button>
   </div>
 
-  <div class="footer">ContentBlocker v<span id="appVersion">1.0.2</span> · Minden szűrés helyi · Nincs adatküldés</div>
+  <div class="footer">ContentBlocker v<span id="appVersion">…</span> · <span data-i18n="footer_text">Minden szűrés helyi · Nincs adatküldés</span></div>
 
+  <script src="i18n.js"></script>
   <script>
     async function load() {
       const cfg = await window.api.getConfig();
+      window.setLang(cfg.lang); window.applyI18n();
       const ver = await window.api.getVersion();
       document.getElementById('appVersion').textContent = ver;
       document.getElementById('blockedCount').textContent = cfg.blocked_count || 0;
       const pw = document.getElementById('pwStatus');
-      pw.textContent = cfg.password_protected ? 'Beállítva' : 'Nincs';
+      pw.textContent = cfg.password_protected ? window.t('val_pw_set') : window.t('val_pw_none');
       pw.className = 'card-value ' + (cfg.password_protected ? 'green' : 'red');
       const rem = cfg.screen_time_remaining;
       const st = document.getElementById('screenTime');
-      if (cfg.screen_time_limit <= 0) { st.textContent = 'Korlátlan'; st.className='card-value green'; }
-      else if (rem === 0) { st.textContent = 'Lejárt!'; st.className='card-value red'; }
+      if (cfg.screen_time_limit <= 0) { st.textContent = window.t('val_unlimited'); st.className='card-value green'; }
+      else if (rem === 0) { st.textContent = window.t('val_expired'); st.className='card-value red'; }
       else {
         const h=Math.floor(rem/3600),m=Math.floor((rem%3600)/60);
         st.textContent = h>0 ? `${h}ó ${m}p` : `${m}p`;
         st.className = rem < 300 ? 'card-value orange' : 'card-value green';
       }
       const as = document.getElementById('autoStart');
-      as.textContent = cfg.auto_start ? 'Bekapcsolva' : 'Kikapcsolva';
+      as.textContent = cfg.auto_start ? window.t('val_on') : window.t('val_off');
       as.className = 'card-value ' + (cfg.auto_start ? 'green' : 'red');
-      document.getElementById('customCount').textContent = (cfg.custom_blocked_sites||[]).length + ' db';
+      document.getElementById('customCount').textContent = (cfg.custom_blocked_sites||[]).length + ' ' + window.t('unit_items');
     }
     document.getElementById('settingsBtn').addEventListener('click', () => window.api.openSettings());
     document.getElementById('screenTimeBtn').addEventListener('click', () => window.api.openScreenTime());

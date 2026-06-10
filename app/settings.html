@@ -2,14 +2,14 @@
 <html lang="hu">
 <head>
   <meta charset="UTF-8">
-  <title>Beállítások – ContentBlocker</title>
+  <title data-i18n-title="set_title">Beállítások – ContentBlocker</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#0f0f1a,#1a0f0f);color:#fff;min-height:100vh;padding:24px;overflow-y:auto}
-    h1{font-size:1.7em;color:#00d4ff;margin-bottom:20px}
-    .section{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:18px;margin-bottom:16px}
-    .section h2{font-size:1em;color:#00d4ff;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-    label{display:block;font-size:.82em;color:#999;margin-bottom:4px;margin-top:10px}
+    body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#0f0f1a,#1a0f0f);color:#fff;min-height:100vh;padding:20px;overflow-y:auto}
+    h1{font-size:1.6em;color:#00d4ff;margin-bottom:14px}
+    .section{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+    .section h2{font-size:1em;color:#00d4ff;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+    label{display:block;font-size:.82em;color:#999;margin-bottom:4px;margin-top:8px}
     input[type=text],input[type=password],input[type=number]{
       width:100%;padding:9px 12px;background:rgba(255,255,255,0.08);
       border:1px solid rgba(255,255,255,0.15);border-radius:7px;color:#fff;font-size:.9em}
@@ -25,7 +25,7 @@
     .msg{font-size:.82em;padding:8px 12px;border-radius:7px;margin-top:8px;display:none}
     .msg.ok{background:rgba(0,255,136,.12);border:1px solid rgba(0,255,136,.3);color:#00ff88;display:block}
     .msg.err{background:rgba(255,60,60,.12);border:1px solid rgba(255,60,60,.3);color:#ff6060;display:block}
-    .tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:32px}
+    .tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:32px;max-height:120px;overflow-y:auto}
     .tag{background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.25);border-radius:20px;
          padding:3px 10px 3px 12px;font-size:.8em;color:#00d4ff;display:flex;align-items:center;gap:6px}
     .tag button{background:none;border:none;color:#ff6060;cursor:pointer;font-size:.9em;padding:0}
@@ -43,76 +43,96 @@
 <!-- Password lock overlay -->
 <div id="lockOverlay">
   <div style="font-size:2em">🔒</div>
-  <h2>Jelszóvédett beállítások</h2>
-  <input type="password" id="unlockPw" placeholder="Írd be a jelszót" autofocus>
+  <h2 data-i18n="lock_h2">Jelszóvédett beállítások</h2>
+  <input type="password" id="unlockPw" data-i18n-ph="lock_ph" placeholder="Írd be a jelszót" autofocus>
   <div id="lockErr"></div>
-  <button class="btn btn-primary" id="unlockBtn">Feloldás</button>
+  <button class="btn btn-primary" id="unlockBtn" data-i18n="lock_btn">Feloldás</button>
 </div>
 
-<h1>⚙ Beállítások</h1>
+<h1 data-i18n="set_h1">⚙ Beállítások</h1>
+
+<!-- Language section -->
+<div class="section">
+  <h2 data-i18n="lang_h2">🌐 Nyelv / Language</h2>
+  <label data-i18n="lang_label">Felület nyelve:</label>
+  <select id="langSelect" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:7px;color:#fff;font-size:.9em">
+    <option value="hu">Magyar</option>
+    <option value="en">English</option>
+  </select>
+</div>
 
 <!-- Password section -->
 <div class="section">
-  <h2>🔒 Jelszóvédelem</h2>
+  <h2 data-i18n="pw_h2">🔒 Jelszóvédelem</h2>
   <div id="pwMsg" class="msg"></div>
   <div id="pwForm">
-    <label>Új jelszó (min. 4 karakter):</label>
-    <input type="password" id="newPw" placeholder="Jelszó">
-    <label>Megerősítés:</label>
-    <input type="password" id="confirmPw" placeholder="Jelszó megerősítése">
+    <label data-i18n="pw_newlabel">Új jelszó (min. 4 karakter):</label>
+    <input type="password" id="newPw" data-i18n-ph="pw_ph" placeholder="Jelszó">
+    <label data-i18n="pw_confirmlabel">Megerősítés:</label>
+    <input type="password" id="confirmPw" data-i18n-ph="pw_confirm_ph" placeholder="Jelszó megerősítése">
     <div style="margin-top:10px;display:flex;gap:8px">
-      <button class="btn btn-primary" id="setPwBtn">Jelszó beállítása</button>
-      <button class="btn btn-danger" id="removePwBtn" style="display:none">Jelszó törlése</button>
+      <button class="btn btn-primary" id="setPwBtn" data-i18n="pw_setbtn">Jelszó beállítása</button>
+      <button class="btn btn-danger" id="removePwBtn" data-i18n="pw_delbtn" style="display:none">Jelszó törlése</button>
     </div>
   </div>
 </div>
 
 <!-- Screen time section -->
 <div class="section">
-  <h2>⏱ Képernyőidő-korlát</h2>
-  <label>Napi limit (perc, 0 = korlátlan):</label>
+  <h2 data-i18n="time_h2">⏱ Képernyőidő-korlát</h2>
+  <label data-i18n="time_label">Napi limit (perc, 0 = korlátlan):</label>
   <div class="row">
     <input type="number" id="screenLimit" value="0" min="0" max="1440">
-    <button class="btn btn-primary" id="saveTimeBtn">Mentés</button>
+    <button class="btn btn-primary" id="saveTimeBtn" data-i18n="btn_save">Mentés</button>
   </div>
   <div id="timeMsg" class="msg"></div>
 </div>
 
 <!-- Auto-start section -->
 <div class="section">
-  <h2>🚀 Automatikus indítás</h2>
+  <h2 data-i18n="auto_h2">🚀 Automatikus indítás</h2>
   <label>
-    <input type="checkbox" id="autoStart"> Induljon el Windows indításakor
+    <input type="checkbox" id="autoStart"> <span data-i18n="auto_label">Induljon el Windows indításakor</span>
   </label>
   <div style="margin-top:10px">
-    <button class="btn btn-primary" id="saveAutoBtn">Mentés</button>
+    <button class="btn btn-primary" id="saveAutoBtn" data-i18n="btn_save">Mentés</button>
   </div>
   <div id="autoMsg" class="msg"></div>
 </div>
 
 <!-- Custom blocklist -->
 <div class="section">
-  <h2>🚫 Egyéni tiltólista</h2>
-  <label>Domain vagy kulcsszó hozzáadása:</label>
+  <h2 data-i18n="block_h2">🚫 Egyéni tiltólista</h2>
+  <label data-i18n="block_label">Domain vagy kulcsszó hozzáadása:</label>
   <div class="row">
-    <input type="text" id="newSite" placeholder="pl. example.com vagy kulcsszó">
-    <button class="btn btn-primary" id="addSiteBtn">Hozzáad</button>
+    <input type="text" id="newSite" data-i18n-ph="block_ph" placeholder="pl. example.com vagy kulcsszó">
+    <button class="btn btn-primary" id="addSiteBtn" data-i18n="block_add">Hozzáad</button>
   </div>
   <div class="tag-list" id="tagList"></div>
   <div id="siteMsg" class="msg"></div>
 </div>
 
-<button class="btn btn-secondary" onclick="window.close()" style="margin-top:4px">Bezárás</button>
+<button class="btn btn-secondary" onclick="window.close()" style="margin-top:4px" data-i18n="close_btn">Bezárás</button>
 
+<script src="i18n.js"></script>
 <script>
 let cfg = {};
 let unlocked = false;
 
 async function init() {
   cfg = await window.api.getConfig();
+  window.setLang(cfg.lang); window.applyI18n();
+  document.getElementById('langSelect').value = (cfg.lang === 'en') ? 'en' : 'hu';
   if (!cfg.password_protected) { unlock(); }
   else { document.getElementById('lockOverlay').style.display = 'flex'; }
 }
+
+document.getElementById('langSelect').addEventListener('change', async (e) => {
+  const v = e.target.value;
+  cfg.lang = v;
+  window.setLang(v); window.applyI18n();
+  await window.api.saveConfig({ lang: v });
+});
 
 function unlock() {
   unlocked = true;
@@ -157,7 +177,7 @@ document.getElementById('unlockBtn').addEventListener('click', async () => {
   const pw = document.getElementById('unlockPw').value;
   const r = await window.api.checkPassword(pw);
   if (r.ok) { unlock(); }
-  else { document.getElementById('lockErr').textContent = 'Hibás jelszó!'; }
+  else { document.getElementById('lockErr').textContent = window.t('lock_wrong'); }
 });
 document.getElementById('unlockPw').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('unlockBtn').click(); });
 
@@ -165,32 +185,32 @@ document.getElementById('unlockPw').addEventListener('keydown', e => { if(e.key=
 document.getElementById('setPwBtn').addEventListener('click', async () => {
   const p1 = document.getElementById('newPw').value;
   const p2 = document.getElementById('confirmPw').value;
-  if (p1.length < 4) { showMsg('pwMsg','Min. 4 karakter!',true); return; }
-  if (p1 !== p2) { showMsg('pwMsg','A két jelszó nem egyezik!',true); return; }
+  if (p1.length < 4) { showMsg('pwMsg',window.t('pw_min_msg'),true); return; }
+  if (p1 !== p2) { showMsg('pwMsg',window.t('pw_nomatch_msg'),true); return; }
   let data = { newPassword: p1 };
   // If password already set, ask for old password
   if (cfg.password_protected) {
-    const oldPw = prompt('Add meg a jelenlegi jelszót a módosításhoz:');
+    const oldPw = prompt(window.t('pw_prompt_old'));
     if (!oldPw) return;
     data.oldPassword = oldPw;
   }
   const r = await window.api.setPassword(data);
   if (r.success) {
     cfg.password_protected = true;
-    showMsg('pwMsg','Jelszó sikeresen beállítva!',false);
+    showMsg('pwMsg',window.t('pw_set_ok'),false);
     document.getElementById('removePwBtn').style.display = 'inline-block';
   } else {
-    showMsg('pwMsg', r.error || 'Hiba történt!', true);
+    showMsg('pwMsg', r.error || window.t('pw_err'), true);
   }
 });
 
 // Remove password
 document.getElementById('removePwBtn').addEventListener('click', async () => {
-  const pw = prompt('Add meg a jelenlegi jelszót a törléshez:');
+  const pw = prompt(window.t('pw_del_prompt'));
   if (!pw) return;
   const r = await window.api.removePassword(pw);
-  if (r.success) { cfg.password_protected = false; showMsg('pwMsg','Jelszó törölve.',false); document.getElementById('removePwBtn').style.display='none'; }
-  else { showMsg('pwMsg','Hibás jelszó!',true); }
+  if (r.success) { cfg.password_protected = false; showMsg('pwMsg',window.t('pw_deleted'),false); document.getElementById('removePwBtn').style.display='none'; }
+  else { showMsg('pwMsg',window.t('lock_wrong'),true); }
 });
 
 // Save screen time
@@ -199,20 +219,20 @@ document.getElementById('saveTimeBtn').addEventListener('click', async () => {
   let payload = { screen_time_limit: v };
   // If password-protected, ask for password to change screen time limit
   if (cfg.password_protected) {
-    const pw = prompt('Add meg a jelszót a képernyőidő-korlát módosításához:');
+    const pw = prompt(window.t('time_prompt_pw'));
     if (!pw) return;
     payload._password = pw;
   }
   const r = await window.api.saveConfig(payload);
   if (r.success) cfg.screen_time_limit = v;
-  showMsg('timeMsg', r.success ? 'Mentve!' : ('Hiba: '+r.error), !r.success);
+  showMsg('timeMsg', r.success ? window.t('msg_saved') : (window.t('msg_err')+r.error), !r.success);
 });
 
 // Auto-start
 document.getElementById('saveAutoBtn').addEventListener('click', async () => {
   const v = document.getElementById('autoStart').checked;
   const r = await window.api.saveConfig({ auto_start: v });
-  showMsg('autoMsg', r.success ? 'Mentve!' : ('Hiba: '+r.error), !r.success);
+  showMsg('autoMsg', r.success ? window.t('msg_saved') : (window.t('msg_err')+r.error), !r.success);
 });
 
 // Add custom site
@@ -220,11 +240,11 @@ document.getElementById('addSiteBtn').addEventListener('click', async () => {
   const val = document.getElementById('newSite').value.trim().toLowerCase();
   if (!val) return;
   if (!cfg.custom_blocked_sites) cfg.custom_blocked_sites = [];
-  if (cfg.custom_blocked_sites.includes(val)) { showMsg('siteMsg','Már szerepel a listán!',true); return; }
+  if (cfg.custom_blocked_sites.includes(val)) { showMsg('siteMsg',window.t('block_exists'),true); return; }
   cfg.custom_blocked_sites.push(val);
   const r = await window.api.saveConfig({ custom_blocked_sites: cfg.custom_blocked_sites });
-  if (r.success) { document.getElementById('newSite').value=''; renderTags(); showMsg('siteMsg','Hozzáadva!',false); }
-  else { showMsg('siteMsg','Hiba: '+r.error,true); }
+  if (r.success) { document.getElementById('newSite').value=''; renderTags(); showMsg('siteMsg',window.t('block_added'),false); }
+  else { showMsg('siteMsg',window.t('msg_err')+r.error,true); }
 });
 
 async function removeSite(site) {

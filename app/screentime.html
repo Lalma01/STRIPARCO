@@ -2,7 +2,7 @@
 <html lang="hu">
 <head>
   <meta charset="UTF-8">
-  <title>Képernyőidő – ContentBlocker</title>
+  <title data-i18n-title="st_title">Képernyőidő – ContentBlocker</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#0f0f1a,#0f1a0f);color:#fff;
@@ -41,18 +41,18 @@
 
 <div id="lockOverlay">
   <div style="font-size:2em">🔒</div>
-  <h2>Jelszóvédett művelet</h2>
-  <p style="color:#999;font-size:.85em">Add meg a jelszót az idő hozzáadásához</p>
-  <input type="password" id="unlockPw" placeholder="Jelszó">
+  <h2 data-i18n="st_lock_h2">Jelszóvédett művelet</h2>
+  <p style="color:#999;font-size:.85em" data-i18n="st_lock_p">Add meg a jelszót az idő hozzáadásához</p>
+  <input type="password" id="unlockPw" data-i18n-ph="pw_ph" placeholder="Jelszó">
   <div id="lockErr"></div>
   <div style="display:flex;gap:8px">
-    <button class="btn btn-primary" id="unlockBtn">Feloldás</button>
-    <button class="btn btn-secondary" onclick="hideLock()">Mégse</button>
+    <button class="btn btn-primary" id="unlockBtn" data-i18n="lock_btn">Feloldás</button>
+    <button class="btn btn-secondary" onclick="hideLock()" data-i18n="st_lock_cancel">Mégse</button>
   </div>
 </div>
 
-<h1>⏱ Képernyőidő</h1>
-<p class="sub" id="subText">Napi képernyőidő-korlát</p>
+<h1 data-i18n="st_h1">⏱ Képernyőidő</h1>
+<p class="sub" id="subText" data-i18n="st_sub">Napi képernyőidő-korlát</p>
 
 <div class="ring-wrap" id="ringWrap">
   <svg width="180" height="180" viewBox="0 0 180 180">
@@ -72,18 +72,19 @@
 </div>
 
 <div class="info-row">
-  <div class="info-card"><div class="val" id="usedVal">–</div><div class="lbl">Felhasznált</div></div>
-  <div class="info-card"><div class="val" id="limitVal">–</div><div class="lbl">Napi limit</div></div>
+  <div class="info-card"><div class="val" id="usedVal">–</div><div class="lbl" data-i18n="card_used">Felhasznált</div></div>
+  <div class="info-card"><div class="val" id="limitVal">–</div><div class="lbl" data-i18n="card_limit">Napi limit</div></div>
 </div>
 
 <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-<div class="limit-msg" id="limitMsg">⚠ A napi képernyőidő-korlát elérve!</div>
+<div class="limit-msg" id="limitMsg" data-i18n="limit_msg">⚠ A napi képernyőidő-korlát elérve!</div>
 
 <div class="actions">
-  <button class="btn btn-primary" id="addTimeBtn">+ 15 perc hozzáadása</button>
-  <button class="btn btn-secondary" id="closeBtn" onclick="window.close()">Bezárás</button>
+  <button class="btn btn-primary" id="addTimeBtn" data-i18n="add_btn">+ 15 perc hozzáadása</button>
+  <button class="btn btn-secondary" id="closeBtn" onclick="window.close()" data-i18n="close_btn">Bezárás</button>
 </div>
 
+<script src="i18n.js"></script>
 <script>
 let cfg = {}, limitReached = false, cachedPw = null;
 
@@ -94,7 +95,7 @@ function fmt(sec) {
               : `${m}:${String(s).padStart(2,'0')}`;
 }
 function fmtMin(sec) {
-  if (sec < 0) return 'Korlátlan';
+  if (sec < 0) return window.t('val_unlimited');
   const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60);
   return h>0 ? `${h}ó ${m}p` : `${m}p`;
 }
@@ -106,9 +107,9 @@ function updateRing(remaining, used, limit) {
   const offset = circ * (1 - pct);
   document.getElementById('ringBar').style.strokeDashoffset = offset;
   document.getElementById('ringTime').textContent = remaining < 0 ? '∞' : fmt(remaining);
-  document.getElementById('ringLabel').textContent = remaining < 0 ? 'korlátlan' : 'maradt';
+  document.getElementById('ringLabel').textContent = remaining < 0 ? window.t('ring_unlimited') : window.t('ring_left');
   document.getElementById('usedVal').textContent = fmtMin(used);
-  document.getElementById('limitVal').textContent = limit > 0 ? limit + ' perc' : 'Korlátlan';
+  document.getElementById('limitVal').textContent = limit > 0 ? limit + ' ' + window.t('unit_min') : window.t('val_unlimited');
   document.getElementById('progressFill').style.width = (pct * 100) + '%';
   const lm = document.getElementById('limitMsg');
   const closeBtn = document.getElementById('closeBtn');
@@ -125,6 +126,7 @@ function updateRing(remaining, used, limit) {
 async function load() {
   const st = await window.api.getScreenTimeStatus();
   cfg = await window.api.getConfig();
+  window.setLang(cfg.lang); window.applyI18n();
   updateRing(st.remaining, st.used, st.limit);
 }
 
@@ -143,7 +145,7 @@ async function doAddTime(pw) {
   const data = pw ? { password: pw, mins: 15 } : 15;
   const r = await window.api.addTime(data);
   if (r.success === false) {
-    document.getElementById('lockErr').textContent = r.error || 'Hiba történt!';
+    document.getElementById('lockErr').textContent = r.error || window.t('err_generic');
     showLock();
     return;
   }
@@ -157,7 +159,7 @@ document.getElementById('unlockBtn').addEventListener('click', async () => {
   const pw = document.getElementById('unlockPw').value;
   const r = await window.api.checkPassword(pw);
   if (r.ok) { hideLock(); doAddTime(pw); }
-  else { document.getElementById('lockErr').textContent='Hibás jelszó!'; }
+  else { document.getElementById('lockErr').textContent=window.t('lock_wrong'); }
 });
 document.getElementById('unlockPw').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('unlockBtn').click(); });
 

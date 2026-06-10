@@ -12,6 +12,7 @@ const MARKER_END    = '# === ContentBlocker END ===';
 const CONFIG_PATH   = path.join(app.getPath('userData'), 'config.json');
 const PRELOAD       = path.join(__dirname, 'preload.js');
 const BLOCKED_HTML_PATH = path.join(app.getPath('userData'), 'blocked.html');
+const PID_FILE          = path.join(app.getPath('userData'), 'cb.pid');
 
 // ── Built-in blocked domains ───────────────────────────────────────────────
 const BUILTIN_DOMAINS = [
@@ -49,12 +50,43 @@ const BLOCKED_KEYWORDS = [
   'porn','xxx','nsfw','hentai', 'sex', 'sexy', 'nude', 'naked',
   'dating', 'hookup', 'free date', 'meet singles', 'meet girls', 'hot women',
   'live sex', 'sex chat', 'adult content', 'escort', 'sugar daddy', 'megismerkedés',
-  'perchance', 'midjourney', 'leonardo.ai', 'nightcafe', 'lexica.art', 'playgroundai', 
+  'perchance', 'midjourney', 'leonardo.ai', 'nightcafe', 'lexica.art', 'playgroundai',
   'craiyon', 'mage.space', 'tensor.art', 'ideogram', 'chatgpt', 'poe.com', 'replika',
   'ai generator', 'ai chat', 'képgenerátor', 'image generator'
 ];
 
 const WHITELIST_AI_KEYWORDS = ['grok', 'claude', 'perplexity', 'gemini'];
+
+// ── Main-process translations ──────────────────────────────────────────────
+const MSG = {
+  hu: {
+    tray_open: 'ContentBlocker megnyitása', tray_screentime: 'Képernyőidő',
+    tray_settings: 'Beállítások', tray_exit: 'Kilépés',
+    tray_unlimited: 'Korlátlan', tray_left: 'maradt',
+    notif_time_title: '⏱ Képernyőidő',
+    notif_15: '15 perc maradt!', notif_5: '5 perc maradt!', notif_1: '1 perc maradt!',
+    notif_limit: 'A napi képernyőidő-korlát elérve.',
+    exit_prompt: 'Jelszó szükséges a kilépéshez', exit_ph: 'Jelszó',
+    exit_ok: 'OK', exit_cancel: 'Mégse', exit_wrong: 'Hibás jelszó',
+    err_pw_time: 'Jelszó szükséges a képernyőidő-korlát módosításához',
+    err_pw_old: 'Hibás régi jelszó', err_pw_min: 'Min. 4 karakter szükséges',
+    err_pw_wrong: 'Hibás jelszó',
+  },
+  en: {
+    tray_open: 'Open ContentBlocker', tray_screentime: 'Screen Time',
+    tray_settings: 'Settings', tray_exit: 'Exit',
+    tray_unlimited: 'Unlimited', tray_left: 'left',
+    notif_time_title: '⏱ Screen Time',
+    notif_15: '15 minutes left!', notif_5: '5 minutes left!', notif_1: '1 minute left!',
+    notif_limit: 'Daily screen time limit reached.',
+    exit_prompt: 'Password required to exit', exit_ph: 'Password',
+    exit_ok: 'OK', exit_cancel: 'Cancel', exit_wrong: 'Wrong password',
+    err_pw_time: 'Password required to change the screen time limit',
+    err_pw_old: 'Wrong current password', err_pw_min: 'Minimum 4 characters required',
+    err_pw_wrong: 'Wrong password',
+  },
+};
+const tr = key => (MSG[config.lang] || MSG.hu)[key] || (MSG.hu[key] || key);
 
 // ── State ──────────────────────────────────────────────────────────────────
 let tray = null, mainWindow = null, settingsWindow = null;
@@ -64,6 +96,7 @@ let screenTimeSecondsUsed = 0;
 let limitReached = false;
 let screenTimePaused = false;
 let lastNotifKey = '', lastNotifTime = 0;
+let lastCloseOthers = 0;
 let watchdogProcess = null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -87,6 +120,7 @@ function defConfig() {
     auto_start: true,
     custom_blocked_sites: [],
     blocked_count: 0,
+    lang: (app.getLocale && app.getLocale().startsWith('hu')) ? 'hu' : 'en',
   };
 }
 
@@ -96,8 +130,6 @@ function loadConfig() {
       ? { ...defConfig(), ...JSON.parse(fs.readFileSync(CONFIG_PATH,'utf8')) }
       : defConfig();
   } catch { config = defConfig(); }
-
-
 
   if (config.screen_time_date !== todayDate()) {
     config.screen_time_used = 0;
@@ -135,7 +167,9 @@ function updateHosts() {
   try { content = fs.readFileSync(HOSTS_FILE,'utf8'); } catch { return false; }
   const rx = new RegExp(`\\r?\\n?${escRx(MARKER_START)}[\\s\\S]*?${escRx(MARKER_END)}\\r?\\n?`,'g');
   let clean = content.replace(rx,'');
-  const all = [...new Set([...BUILTIN_DOMAINS, ...config.custom_blocked_sites])];
+  const allowed = new Set(ALLOWED_DOMAINS);
+  const all = [...new Set([...BUILTIN_DOMAINS, ...config.custom_blocked_sites])]
+    .filter(d => !allowed.has(d) && !ALLOWED_DOMAINS.some(a => d === a || d.endsWith('.' + a)));
   const lines = ['\n'+MARKER_START];
   for (const d of all) {
     lines.push(`127.0.0.1 ${d}`);
@@ -173,17 +207,39 @@ function setAutoStart(enabled) {
 }
 
 function preventUninstallation() {
-  // Vanguard-style persistence: hide from uninstallation list
   const appId = 'com.contentblocker.app';
   const keys = [
     `HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${appId}`,
     `HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${appId}`
   ];
+  // Remove entire uninstall registry keys so app is invisible in Control Panel & Settings
   keys.forEach(key => {
-    exec(`reg add "${key}" /v "NoRemove" /t REG_DWORD /d 1 /f`);
-    exec(`reg add "${key}" /v "NoModify" /t REG_DWORD /d 1 /f`);
-    exec(`reg add "${key}" /v "SystemComponent" /t REG_DWORD /d 1 /f`);
+    exec(`reg delete "${key}" /f`, () => {});
   });
+
+  // Delete uninstaller exe from install directory
+  deleteUninstallerExe();
+}
+
+function deleteUninstallerExe() {
+  const installDir = path.dirname(process.execPath);
+  try {
+    const files = fs.readdirSync(installDir);
+    for (const f of files) {
+      const lo = f.toLowerCase();
+      if (lo.includes('uninstall') && lo.endsWith('.exe')) {
+        const fp = path.join(installDir, f);
+        try { fs.unlinkSync(fp); } catch(e) {
+          // If locked, try renaming then deleting on reboot
+          try {
+            const tmp = fp + '.del';
+            fs.renameSync(fp, tmp);
+            exec(`cmd /c del /f /q "${tmp}"`);
+          } catch(e2) {}
+        }
+      }
+    }
+  } catch(e) {}
 }
 
 // ── Browser title monitor ──────────────────────────────────────────────────
@@ -200,7 +256,7 @@ function startBrowsersMonitor() {
         $json = $p | Select-Object -Property Id, MainWindowTitle | ConvertTo-Json -Compress
         Write-Output $json
       }
-      Start-Sleep -Seconds 1
+      Start-Sleep -Seconds 2
     }
   `;
   psMonitor = spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
@@ -318,7 +374,7 @@ function getRemaining() {
 function updateTray() {
   if (!tray || tray.isDestroyed()) return;
   const rem = getRemaining();
-  const timeStr = rem < 0 ? 'Korlátlan' : fmtTime(rem) + ' maradt';
+  const timeStr = rem < 0 ? tr('tray_unlimited') : fmtTime(rem) + ' ' + tr('tray_left');
   tray.setToolTip(`ContentBlocker  ⏱ ${timeStr}`);
 }
 
@@ -349,12 +405,13 @@ function startTimers() {
     const rem = getRemaining();
     updateTray();
     
-    if (rem === 15 * 60 || (rem < 15 * 60 && rem > 15 * 60 - 3 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif('15 perc maradt!');
-    if (rem === 5 * 60 || (rem < 5 * 60 && rem > 5 * 60 - 3 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif('5 perc maradt!');
-    if (rem === 60 || (rem < 60 && rem > 57 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif('1 perc maradt!');
+    if (rem === 15 * 60 || (rem < 15 * 60 && rem > 15 * 60 - 3 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif(tr('notif_15'));
+    if (rem === 5 * 60 || (rem < 5 * 60 && rem > 5 * 60 - 3 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif(tr('notif_5'));
+    if (rem === 60 || (rem < 60 && rem > 57 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif(tr('notif_1'));
     
     if (rem === 0 && !limitReached) { limitReached = true; onLimitReached(); }
-    if (limitReached) closeOtherPrograms();
+    // Re-enforce browser closing periodically (not every second) to keep CPU usage low
+    if (limitReached && Date.now() - lastCloseOthers > 15000) closeOtherPrograms();
     
     if (screenTimeWindow && !screenTimeWindow.isDestroyed()) {
       screenTimeWindow.webContents.send('time-tick', { remaining: rem, used: screenTimeSecondsUsed, limit: config.screen_time_limit });
@@ -371,7 +428,7 @@ function startTimers() {
 }
 
 function onLimitReached() {
-  showTimeNotif('A napi képernyőidő-korlát elérve.');
+  showTimeNotif(tr('notif_limit'));
   lockSystem();
   closeOtherPrograms();
   openScreenTimeWindow();
@@ -382,6 +439,7 @@ function lockSystem() {
 }
 
 function closeOtherPrograms() {
+  lastCloseOthers = Date.now();
   // Lezár minden böngészőt, de más programokat (Word, Excel stb.) békén hagy
   const browsers = ['chrome','firefox','msedge','opera','brave','vivaldi','iexplore','waterfox','librewolf','thorium','arc','sidekick','ghostery','whale'];
   const nameFilter = browsers.map(b => `$_.ProcessName -eq '${b}'`).join(' -or ');
@@ -393,7 +451,7 @@ function closeOtherPrograms() {
 
 function showTimeNotif(body) {
   if (Notification.isSupported()) {
-    new Notification({ title: '⏱ Képernyőidő', body }).show();
+    new Notification({ title: tr('notif_time_title'), body }).show();
   }
 }
 
@@ -419,7 +477,7 @@ function openMainWindow() {
 function openSettingsWindow() {
   if (limitReached) { openScreenTimeWindow(); return; }
   if (settingsWindow && !settingsWindow.isDestroyed()) { settingsWindow.focus(); return; }
-  settingsWindow = makeWindow('settings.html', { width:640, height:640, resizable:false });
+  settingsWindow = makeWindow('settings.html', { width:640, height:820, resizable:false });
   settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
@@ -440,7 +498,7 @@ function openScreenTimeWindow() {
   }
   
   screenTimeWindow = new BrowserWindow({
-    width: 420, height: 380,
+    width: 440, height: 600,
     resizable: false,
     kiosk: isTimeUp,
     alwaysOnTop: isTimeUp,
@@ -475,11 +533,11 @@ function createTray() {
 function buildTrayMenu() {
   if (!tray || tray.isDestroyed()) return;
   const menu = Menu.buildFromTemplate([
-    { label:'ContentBlocker megnyitása', click: openMainWindow },
-    { label:'Képernyőidő',              click: openScreenTimeWindow },
-    { label:'Beállítások',              click: openSettingsWindow },
+    { label:tr('tray_open'),       click: openMainWindow },
+    { label:tr('tray_screentime'), click: openScreenTimeWindow },
+    { label:tr('tray_settings'),   click: openSettingsWindow },
     { type:'separator' },
-    { label:'Kilépés', click: protectExit },
+    { label:tr('tray_exit'), click: protectExit },
   ]);
   tray.setContextMenu(menu);
 }
@@ -501,18 +559,18 @@ async function protectExit() {
       input{padding:8px;margin:10px;border-radius:4px;border:none}
       button{padding:8px 16px;cursor:pointer;background:%2300d4ff;border:none;border-radius:4px;color:black;font-weight:bold}
     </style>
-    <div>Jelszó szükséges a kilépéshez</div>
-    <input type="password" id="p" placeholder="Jelszó" autofocus>
+    <div>${tr('exit_prompt')}</div>
+    <input type="password" id="p" placeholder="${tr('exit_ph')}" autofocus>
     <div id="e" style="color:red;font-size:12px;margin-bottom:5px"></div>
     <div style="display:flex;gap:10px">
-      <button id="b">OK</button>
-      <button onclick="window.close()">Mégse</button>
+      <button id="b">${tr('exit_ok')}</button>
+      <button onclick="window.close()">${tr('exit_cancel')}</button>
     </div>
     <script>
       document.getElementById('b').onclick = async () => {
         const ok = await window.api.checkPassword(document.getElementById('p').value);
         if(ok.ok) window.api.confirmExit();
-        else document.getElementById('e').innerText = 'Hibás jelszó';
+        else document.getElementById('e').innerText = '${tr('exit_wrong')}';
       };
       document.getElementById('p').onkeydown = e => { if(e.key==='Enter') document.getElementById('b').click(); };
     </script>
@@ -526,6 +584,7 @@ function doExit() {
     try { process.kill(watchdogProcess.pid); } catch(e) {}
     watchdogProcess = null;
   }
+  try { fs.unlinkSync(PID_FILE); } catch(e) {}
   cleanHosts();
   app.quit();
 }
@@ -551,7 +610,7 @@ ipcMain.handle('save-config', (_, incoming) => {
     // Password-protected settings require password to change screen_time_limit
     if (config.password_protected && 'screen_time_limit' in incoming) {
       if (!incoming._password || hashPw(incoming._password) !== config.password_hash) {
-        return { success:false, error:'Jelszó szükséges a képernyőidő-korlát módosításához' };
+        return { success:false, error:tr('err_pw_time') };
       }
     }
     if (incoming.custom_blocked_sites) {
@@ -559,11 +618,12 @@ ipcMain.handle('save-config', (_, incoming) => {
          .map(s => s.toLowerCase().replace(/[\s\r\n]/g, '').trim())
          .filter(s => s.length > 1 && s.length < 100);
     }
-    const allowedKeys = ['screen_time_limit','auto_start','custom_blocked_sites'];
+    const allowedKeys = ['screen_time_limit','auto_start','custom_blocked_sites','lang'];
     for (const k of allowedKeys) { if (k in incoming) config[k] = incoming[k]; }
     saveConfig();
     updateHosts();
     if ('auto_start' in incoming) setAutoStart(incoming.auto_start);
+    if ('lang' in incoming) { buildTrayMenu(); updateTray(); }
     broadcastConfigChanged();
     return { success:true };
   } catch(e) { return { success:false, error:e.message }; }
@@ -579,11 +639,11 @@ ipcMain.handle('set-password', (_, data) => {
   if (config.password_protected) {
     const oldPw = typeof data === 'object' ? data.oldPassword : null;
     if (!oldPw || hashPw(oldPw) !== config.password_hash) {
-      return { success:false, error:'Hibás régi jelszó' };
+      return { success:false, error:tr('err_pw_old') };
     }
   }
   const newPw = typeof data === 'object' ? data.newPassword : data;
-  if (!newPw || newPw.length < 4) return { success:false, error:'Min. 4 karakter szükséges' };
+  if (!newPw || newPw.length < 4) return { success:false, error:tr('err_pw_min') };
   config.password_protected = true;
   config.password_hash = hashPw(newPw);
   saveConfig();
@@ -592,7 +652,7 @@ ipcMain.handle('set-password', (_, data) => {
 });
 
 ipcMain.handle('remove-password', (_, pw) => {
-  if (hashPw(pw) !== config.password_hash) return { success:false, error:'Hibás jelszó' };
+  if (hashPw(pw) !== config.password_hash) return { success:false, error:tr('err_pw_wrong') };
   config.password_protected = false;
   config.password_hash = '';
   saveConfig();
@@ -614,7 +674,7 @@ ipcMain.handle('add-time', (_, data) => {
   if (config.password_protected) {
     const pw = typeof data === 'object' ? data.password : null;
     if (!pw || hashPw(pw) !== config.password_hash) {
-      return { success:false, error:'Hibás jelszó' };
+      return { success:false, error:tr('err_pw_wrong') };
     }
   }
   const mins = typeof data === 'object' ? data.mins : data;
@@ -668,16 +728,28 @@ else {
     
     // Add signal handler for graceful termination (e.g., system shutdown)
     process.on('SIGTERM', () => { saveConfig(); });
-    
-    // Start the Watchdog process – pass --hidden so restarts are silent
+
+    // Persistence: write our PID so the watchdog can track us, and keep a watchdog alive.
+    try { fs.writeFileSync(PID_FILE, String(process.pid), 'utf8'); } catch(e) {}
+    ensureWatchdog();
+  });
+
+  // Spawn the watchdog if one isn't running; respawn it automatically if it dies.
+  function ensureWatchdog() {
+    if (app.isQuitting) return;
     const watchdogPath = path.join(__dirname, 'watchdog.js');
-    watchdogProcess = spawn(process.execPath, [watchdogPath, process.execPath, '--hidden', process.pid.toString()], {
+    watchdogProcess = spawn(process.execPath, [watchdogPath, process.execPath, '--hidden', PID_FILE], {
       detached: true,
       stdio: 'ignore',
       env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
     });
+    watchdogProcess.on('exit', () => {
+      watchdogProcess = null;
+      // If the watchdog was killed (e.g. via Task Manager) and we're still running, bring it back.
+      if (!app.isQuitting) setTimeout(ensureWatchdog, 1000);
+    });
     watchdogProcess.unref();
-  });
+  }
 
   app.on('window-all-closed', e => e.preventDefault());
   app.on('quit', () => { saveConfig(); });
