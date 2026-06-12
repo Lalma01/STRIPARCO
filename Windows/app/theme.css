@@ -1,0 +1,257 @@
+/* STRIPARCO — shared UI theme.
+   One stylesheet for every window so all surfaces, inputs and controls match.
+   Colours follow the OS light/dark preference automatically (prefers-color-scheme);
+   the main process can force a scheme via nativeTheme when the user picks one manually. */
+
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #eef0f3;
+  --border: #d9dce1;
+  --text: #1d1f24;
+  --muted: #6a6f78;
+  --accent: #3461d6;
+  --accent-hover: #2b53bb;
+  --accent-text: #ffffff;
+  --danger: #c5362c;
+  --danger-soft: rgba(197, 54, 44, 0.10);
+  --success: #1f8a4c;
+  --warning: #c47d12;
+  --radius: 10px;
+  --radius-sm: 7px;
+  --shadow: 0 6px 24px rgba(20, 24, 33, 0.12);
+  --font: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1d22;
+    --surface: #25282e;
+    --surface-2: #2e323a;
+    --border: #3a3f48;
+    --text: #eceef1;
+    --muted: #9aa0aa;
+    --accent: #5b86e5;
+    --accent-hover: #6d95ec;
+    --accent-text: #ffffff;
+    --danger: #e5685e;
+    --danger-soft: rgba(229, 104, 94, 0.14);
+    --success: #57c98a;
+    --warning: #e0a73c;
+    --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+body {
+  min-height: 100vh;
+  padding: 28px 26px;
+}
+
+body.centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+h1 {
+  font-size: 1.45rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  margin-bottom: 6px;
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-bottom: 22px;
+}
+
+h2 {
+  font-size: 0.98rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+/* Cards & sections — identical surface treatment everywhere */
+.card,
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+
+.section { margin-bottom: 14px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+  max-width: 560px;
+  margin-bottom: 22px;
+}
+
+.card-label {
+  font-size: 0.74rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.card-value { font-size: 1.2rem; font-weight: 650; }
+.card-value.green   { color: var(--success); }
+.card-value.red     { color: var(--danger); }
+.card-value.orange  { color: var(--warning); }
+.card-value.accent  { color: var(--accent); }
+
+.badge-active { display: inline-flex; align-items: center; gap: 7px; }
+.dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--success);
+}
+
+/* Form controls — one look for every input across all windows */
+label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 10px 0 5px;
+}
+
+input[type=text],
+input[type=password],
+input[type=number],
+select {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+input[type=checkbox] {
+  width: 16px; height: 16px;
+  accent-color: var(--accent);
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.row { display: flex; gap: 8px; align-items: flex-end; }
+.row input { flex: 1; }
+
+/* Buttons — shared sizing and states */
+.btn {
+  padding: 9px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+}
+.btn:hover { opacity: 0.92; }
+.btn:active { opacity: 0.82; }
+
+.btn-primary { background: var(--accent); color: var(--accent-text); }
+.btn-primary:hover { background: var(--accent-hover); opacity: 1; }
+
+.btn-secondary {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-danger {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.actions { display: flex; gap: 10px; }
+
+/* Inline status messages */
+.msg {
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  display: none;
+}
+.msg.ok  { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); display: block; }
+.msg.err { background: var(--danger-soft); color: var(--danger); display: block; }
+
+/* Tag list (custom blocklist) */
+.tag-list {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 10px; min-height: 30px; max-height: 130px; overflow-y: auto;
+}
+.tag {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 3px 8px 3px 12px;
+  font-size: 0.8rem;
+  display: flex; align-items: center; gap: 7px;
+}
+.tag button { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 0.9em; }
+
+/* Footer */
+.footer {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-top: 22px;
+  text-align: center;
+}
+
+/* Modal overlay (password prompts) — shared across windows */
+.overlay {
+  position: fixed; inset: 0;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(2px);
+  display: none;
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px; z-index: 999;
+}
+.overlay.show { display: flex; }
+.overlay .panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px 28px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  min-width: 280px;
+}
+.overlay input { text-align: center; }
+.err-text { color: var(--danger); font-size: 0.84rem; min-height: 1em; }

@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, Notification, screen, powerMonitor } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, Notification, screen, powerMonitor, nativeTheme } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 const crypto = require('crypto');
@@ -7,12 +7,17 @@ const { exec, spawn } = require('child_process');
 
 // ── Paths ──────────────────────────────────────────────────────────────────
 const HOSTS_FILE    = 'C:\\Windows\\System32\\drivers\\etc\\hosts';
-const MARKER_START  = '# === ContentBlocker START ===';
-const MARKER_END    = '# === ContentBlocker END ===';
+const MARKER_START  = '# === STRIPARCO START ===';
+const MARKER_END    = '# === STRIPARCO END ===';
 const CONFIG_PATH   = path.join(app.getPath('userData'), 'config.json');
 const PRELOAD       = path.join(__dirname, 'preload.js');
 const BLOCKED_HTML_PATH = path.join(app.getPath('userData'), 'blocked.html');
 const PID_FILE          = path.join(app.getPath('userData'), 'cb.pid');
+const APP_ID            = 'com.striparco.app';
+
+// Pause screen-time counting after this many seconds of inactivity (covers monitor
+// power-off / idle). Lock and suspend pause immediately via power-monitor events.
+const IDLE_PAUSE_SECONDS = 60;
 
 // ── Built-in blocked domains ───────────────────────────────────────────────
 const BUILTIN_DOMAINS = [
@@ -72,10 +77,10 @@ const WHITELIST_AI_KEYWORDS = ['grok', 'claude', 'perplexity', 'gemini', 'chatgp
 // ── Main-process translations ──────────────────────────────────────────────
 const MSG = {
   hu: {
-    tray_open: 'ContentBlocker megnyitása', tray_screentime: 'Képernyőidő',
+    tray_open: 'STRIPARCO megnyitása', tray_screentime: 'Képernyőidő',
     tray_settings: 'Beállítások', tray_exit: 'Kilépés',
     tray_unlimited: 'Korlátlan', tray_left: 'maradt',
-    notif_time_title: '⏱ Képernyőidő',
+    notif_time_title: 'Képernyőidő',
     notif_15: '15 perc maradt!', notif_5: '5 perc maradt!', notif_1: '1 perc maradt!',
     notif_limit: 'A napi képernyőidő-korlát elérve.',
     exit_prompt: 'Jelszó szükséges a kilépéshez', exit_ph: 'Jelszó',
@@ -85,10 +90,10 @@ const MSG = {
     err_pw_wrong: 'Hibás jelszó',
   },
   en: {
-    tray_open: 'Open ContentBlocker', tray_screentime: 'Screen Time',
+    tray_open: 'Open STRIPARCO', tray_screentime: 'Screen Time',
     tray_settings: 'Settings', tray_exit: 'Exit',
     tray_unlimited: 'Unlimited', tray_left: 'left',
-    notif_time_title: '⏱ Screen Time',
+    notif_time_title: 'Screen Time',
     notif_15: '15 minutes left!', notif_5: '5 minutes left!', notif_1: '1 minute left!',
     notif_limit: 'Daily screen time limit reached.',
     exit_prompt: 'Password required to exit', exit_ph: 'Password',
@@ -103,6 +108,7 @@ const tr = key => (MSG[config.lang] || MSG.hu)[key] || (MSG.hu[key] || key);
 // ── State ──────────────────────────────────────────────────────────────────
 let tray = null, mainWindow = null, settingsWindow = null;
 let notifWindow = null, screenTimeWindow = null;
+let coverWindows = [];
 let config = {};
 let screenTimeSecondsUsed = 0;
 let limitReached = false;
@@ -110,6 +116,7 @@ let screenTimePaused = false;
 let lastNotifKey = '', lastNotifTime = 0;
 let lastCloseOthers = 0;
 let watchdogProcess = null;
+let lockoutEnforcer = null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const todayDate  = () => new Date().toISOString().slice(0,10);
@@ -132,6 +139,7 @@ function defConfig() {
     auto_start: true,
     custom_blocked_sites: [],
     blocked_count: 0,
+    theme: 'system',           // 'system' | 'light' | 'dark'
     lang: (app.getLocale && app.getLocale().startsWith('hu')) ? 'hu' : 'en',
   };
 }
@@ -154,11 +162,16 @@ function loadConfig() {
   }
 }
 
+// ── Theme ──────────────────────────────────────────────────────────────────
+function applyTheme() {
+  const t = config.theme || 'system';
+  nativeTheme.themeSource = (t === 'light' || t === 'dark') ? t : 'system';
+}
+
 function allowUninstallation() {
-  const appId = 'com.contentblocker.app';
   const keys = [
-    `HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${appId}`,
-    `HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${appId}`
+    `HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_ID}`,
+    `HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_ID}`
   ];
   keys.forEach(key => {
     exec(`reg delete "${key}" /v "NoRemove" /f`, () => {});
@@ -208,21 +221,20 @@ function cleanHosts() {
 function setAutoStart(enabled) {
   const exe = `\"${process.execPath}\" --hidden`;
   if (enabled) {
-    exec(`schtasks /create /tn "ContentBlocker" /tr "${exe.replace(/"/g, '\\"')}" /sc onlogon /rl highest /f`, err => {
-      if (err) exec(`reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "ContentBlocker" /t REG_SZ /d "${exe.replace(/"/g, '\\"')}" /f`);
+    exec(`schtasks /create /tn "STRIPARCO" /tr "${exe.replace(/"/g, '\\"')}" /sc onlogon /rl highest /f`, err => {
+      if (err) exec(`reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /t REG_SZ /d "${exe.replace(/"/g, '\\"')}" /f`);
     });
     preventUninstallation();
   } else {
-    exec('schtasks /delete /tn "ContentBlocker" /f');
-    exec('reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "ContentBlocker" /f');
+    exec('schtasks /delete /tn "STRIPARCO" /f');
+    exec('reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /f');
   }
 }
 
 function preventUninstallation() {
-  const appId = 'com.contentblocker.app';
   const keys = [
-    `HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${appId}`,
-    `HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${appId}`
+    `HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_ID}`,
+    `HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_ID}`
   ];
   // Remove entire uninstall registry keys so app is invisible in Control Panel & Settings
   keys.forEach(key => {
@@ -288,11 +300,11 @@ function startBrowsersMonitor() {
         $json = $p | Select-Object -Property Id, MainWindowTitle | ConvertTo-Json -Compress
         Write-Output $json
       }
-      Start-Sleep -Seconds 2
+      Start-Sleep -Milliseconds 800
     }
   `;
   psMonitor = spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
-  
+
   psMonitor.stdout.on('data', (data) => {
     psMonitorBuffer += data.toString();
     const lines = psMonitorBuffer.split('\n');
@@ -316,7 +328,7 @@ function startBrowsersMonitor() {
   psMonitor.on('exit', () => {
     psMonitor = null;
     psMonitorBuffer = '';
-    setTimeout(startBrowsersMonitor, 5000); // Auto-restart if crashed
+    setTimeout(startBrowsersMonitor, 3000); // Auto-restart if crashed
   });
 }
 
@@ -326,9 +338,10 @@ function triggerBlock(title, keyword, pid) {
   lastNotifKey = keyword; lastNotifTime = now;
   config.blocked_count = (config.blocked_count||0)+1;
   saveConfig();
-  
-  redirectBrowser(pid);
+
+  // Show the notice immediately, then redirect — keeps the popup snappy.
   showNotifWindow(title, keyword);
+  redirectBrowser(pid);
 }
 
 function redirectBrowser(pid) {
@@ -337,15 +350,15 @@ function redirectBrowser(pid) {
   const safeUrl = blockedUrl.replace(/'/g, "''");
   const ps = `
     Add-Type -AssemblyName Microsoft.VisualBasic
-    Start-Sleep -Milliseconds 50
     try { [Microsoft.VisualBasic.Interaction]::AppActivate(${pid}) } catch {}
-    Start-Sleep -Milliseconds 200
+    Start-Sleep -Milliseconds 120
     Set-Clipboard -Value '${safeUrl}'
     $wshell = New-Object -ComObject wscript.shell
     $wshell.SendKeys('^l')
-    Start-Sleep -Milliseconds 100
+    Start-Sleep -Milliseconds 60
+    $wshell.SendKeys('^a')
     $wshell.SendKeys('^v')
-    Start-Sleep -Milliseconds 50
+    Start-Sleep -Milliseconds 40
     $wshell.SendKeys('{ENTER}')
   `;
   exec(`powershell -NoProfile -NonInteractive -Command "${ps.replace(/\n/g, '; ')}"`);
@@ -355,22 +368,25 @@ function redirectBrowser(pid) {
 function showNotifWindow(title, keyword) {
   if (notifWindow && !notifWindow.isDestroyed()) {
     notifWindow.webContents.send('update-notification', { title, keyword });
-    notifWindow.show(); notifWindow.focus(); return;
+    notifWindow.showInactive();
+    notifWindow.setAlwaysOnTop(true, 'screen-saver');
+    return;
   }
   const { width } = screen.getPrimaryDisplay().workAreaSize;
   notifWindow = new BrowserWindow({
-    width:380, height:180, x: width-400, y:20,
+    width:380, height:170, x: width-400, y:20,
     frame:false, alwaysOnTop:true, skipTaskbar:true, resizable:false,
-    transparent:true,
+    transparent:true, focusable:false, show:false,
     webPreferences:{ nodeIntegration:false, contextIsolation:true, preload:PRELOAD }
   });
+  notifWindow.setAlwaysOnTop(true, 'screen-saver');
   notifWindow.loadFile(path.join(__dirname,'notification.html'));
   notifWindow.once('ready-to-show', () => {
     notifWindow.webContents.send('update-notification', { title, keyword });
-    notifWindow.show();
+    notifWindow.showInactive();
   });
   notifWindow.on('closed', () => { notifWindow = null; });
-  setTimeout(() => { if (notifWindow && !notifWindow.isDestroyed()) notifWindow.close(); }, 9000);
+  setTimeout(() => { if (notifWindow && !notifWindow.isDestroyed()) notifWindow.close(); }, 8000);
 }
 
 // ── Screen time ────────────────────────────────────────────────────────────
@@ -383,44 +399,59 @@ function updateTray() {
   if (!tray || tray.isDestroyed()) return;
   const rem = getRemaining();
   const timeStr = rem < 0 ? tr('tray_unlimited') : fmtTime(rem) + ' ' + tr('tray_left');
-  tray.setToolTip(`ContentBlocker  ⏱ ${timeStr}`);
+  tray.setToolTip(`STRIPARCO  ·  ${timeStr}`);
+}
+
+// True when time should not be counted: explicit pause (lock/suspend) or system idle
+// (monitor powered off / screensaver / inactivity).
+function isCountingPaused() {
+  if (screenTimePaused) return true;
+  try {
+    const state = powerMonitor.getSystemIdleState(IDLE_PAUSE_SECONDS);
+    if (state === 'locked' || state === 'idle') return true;
+  } catch (e) {}
+  return false;
 }
 
 function startTimers() {
-  // Pause screen time on lock/sleep, resume on unlock/wake
-  // Register power monitor events only once to avoid duplicate listeners
+  // Pause screen time on lock/sleep, resume on unlock/wake.
   if (!global.__powerMonitorInitialized) {
-    powerMonitor.on('lock-screen', () => { screenTimePaused = true; saveConfig(); });
+    powerMonitor.on('lock-screen',   () => { screenTimePaused = true;  saveConfig(); });
     powerMonitor.on('unlock-screen', () => { screenTimePaused = false; });
-    powerMonitor.on('suspend', () => { screenTimePaused = true; saveConfig(); });
-    powerMonitor.on('resume', () => { screenTimePaused = false; });
+    powerMonitor.on('suspend',       () => { screenTimePaused = true;  saveConfig(); });
+    powerMonitor.on('resume',        () => { screenTimePaused = false; });
+    // Logout / shutdown: persist and stop counting.
+    powerMonitor.on('shutdown',      () => { screenTimePaused = true;  saveConfig(); });
     global.__powerMonitorInitialized = true;
   }
-  // Ensure config is saved and app exits gracefully on user session end (logout or shutdown)
+  // User session end (logout or shutdown): persist and quit gracefully.
   app.on('session-end', () => {
+    screenTimePaused = true;
     saveConfig();
-    // Attempt to quit the app; if already quitting, this is a no-op
     if (!app.isQuitting) app.quit();
   });
 
   setInterval(() => {
-    if (screenTimePaused) return;
     if (config.screen_time_date !== todayDate()) {
       config.screen_time_date = todayDate(); screenTimeSecondsUsed = 0; limitReached = false;
     }
-    screenTimeSecondsUsed++;
-    if (screenTimeSecondsUsed % 10 === 0) saveConfig();
+
+    if (!isCountingPaused()) {
+      screenTimeSecondsUsed++;
+      if (screenTimeSecondsUsed % 10 === 0) saveConfig();
+    }
+
     const rem = getRemaining();
     updateTray();
-    
+
     if (rem === 15 * 60 || (rem < 15 * 60 && rem > 15 * 60 - 3 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif(tr('notif_15'));
     if (rem === 5 * 60 || (rem < 5 * 60 && rem > 5 * 60 - 3 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif(tr('notif_5'));
     if (rem === 60 || (rem < 60 && rem > 57 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif(tr('notif_1'));
-    
+
     if (rem === 0 && !limitReached) { limitReached = true; onLimitReached(); }
     // Re-enforce browser closing periodically (not every second) to keep CPU usage low
     if (limitReached && Date.now() - lastCloseOthers > 15000) closeOtherPrograms();
-    
+
     if (screenTimeWindow && !screenTimeWindow.isDestroyed()) {
       screenTimeWindow.webContents.send('time-tick', { remaining: rem, used: screenTimeSecondsUsed, limit: config.screen_time_limit });
     }
@@ -437,24 +468,73 @@ function startTimers() {
 
 function onLimitReached() {
   showTimeNotif(tr('notif_limit'));
-  lockSystem();
   closeOtherPrograms();
   openScreenTimeWindow();
-}
-
-function lockSystem() {
-  exec('rundll32.exe user32.dll,LockWorkStation');
+  startLockoutEnforcer();
 }
 
 function closeOtherPrograms() {
   lastCloseOthers = Date.now();
-  // Lezár minden böngészőt, de más programokat (Word, Excel stb.) békén hagy
+  // Close every browser, but leave other apps (Word, Excel, …) alone.
   const browsers = ['chrome','firefox','msedge','opera','brave','vivaldi','iexplore','waterfox','librewolf','thorium','arc','sidekick','ghostery','whale'];
   const nameFilter = browsers.map(b => `$_.ProcessName -eq '${b}'`).join(' -or ');
   const ps = `
     Get-Process | Where-Object { $_.MainWindowTitle -and (${nameFilter}) -and $_.Id -ne ${process.pid} } | Stop-Process -Force -ErrorAction SilentlyContinue
   `;
   exec(`powershell -NoProfile -NonInteractive -Command "${ps.replace(/\n/g, '; ')}"`);
+}
+
+// While the daily limit is reached, keep the lock window covering the screen and on top
+// so the machine cannot be used for anything except entering the password to add time.
+function startLockoutEnforcer() {
+  if (lockoutEnforcer) return;
+  lockoutEnforcer = setInterval(() => {
+    if (!limitReached || getRemaining() !== 0) {
+      stopLockoutEnforcer();
+      return;
+    }
+    if (!screenTimeWindow || screenTimeWindow.isDestroyed()) {
+      openScreenTimeWindow();
+      return;
+    }
+    try {
+      screenTimeWindow.setKiosk(true);
+      screenTimeWindow.setAlwaysOnTop(true, 'screen-saver');
+      if (!screenTimeWindow.isVisible()) screenTimeWindow.show();
+      if (!screenTimeWindow.isFocused()) screenTimeWindow.focus();
+      for (const w of coverWindows) {
+        if (w && !w.isDestroyed()) { w.setAlwaysOnTop(true, 'screen-saver'); if (!w.isVisible()) w.show(); }
+      }
+    } catch (e) {}
+  }, 1000);
+}
+
+function stopLockoutEnforcer() {
+  if (lockoutEnforcer) { clearInterval(lockoutEnforcer); lockoutEnforcer = null; }
+  destroyCoverWindows();
+}
+
+// Cover every secondary display with a blank always-on-top window so nothing else is reachable.
+function createCoverWindows() {
+  destroyCoverWindows();
+  const primary = screen.getPrimaryDisplay();
+  for (const d of screen.getAllDisplays()) {
+    if (d.id === primary.id) continue;
+    const w = new BrowserWindow({
+      x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height,
+      frame:false, fullscreen:true, skipTaskbar:true, alwaysOnTop:true, focusable:false,
+      backgroundColor:'#000000',
+      webPreferences:{ nodeIntegration:false, contextIsolation:true }
+    });
+    w.setAlwaysOnTop(true, 'screen-saver');
+    w.on('closed', () => {});
+    coverWindows.push(w);
+  }
+}
+
+function destroyCoverWindows() {
+  for (const w of coverWindows) { try { if (w && !w.isDestroyed()) w.destroy(); } catch(e) {} }
+  coverWindows = [];
 }
 
 function showTimeNotif(body) {
@@ -467,6 +547,7 @@ function showTimeNotif(body) {
 function makeWindow(file, opts) {
   const w = new BrowserWindow({
     ...opts,
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b1d22' : '#f4f5f7',
     webPreferences:{ nodeIntegration:false, contextIsolation:true, preload:PRELOAD }
   });
   w.loadFile(path.join(__dirname, file));
@@ -477,7 +558,7 @@ function makeWindow(file, opts) {
 function openMainWindow() {
   if (limitReached) { openScreenTimeWindow(); return; }
   if (mainWindow && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); return; }
-  mainWindow = makeWindow('index.html', { width:700, height:540, resizable:false });
+  mainWindow = makeWindow('index.html', { width:700, height:560, resizable:false });
   mainWindow.on('close', e => { if (!app.isQuitting) { e.preventDefault(); mainWindow.hide(); } });
   mainWindow.on('closed', () => { mainWindow = null; });
 }
@@ -485,41 +566,48 @@ function openMainWindow() {
 function openSettingsWindow() {
   if (limitReached) { openScreenTimeWindow(); return; }
   if (settingsWindow && !settingsWindow.isDestroyed()) { settingsWindow.focus(); return; }
-  settingsWindow = makeWindow('settings.html', { width:640, height:820, resizable:false });
+  settingsWindow = makeWindow('settings.html', { width:640, height:840, resizable:false });
   settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
 function openScreenTimeWindow() {
   const isTimeUp = getRemaining() === 0;
 
-  if (screenTimeWindow && !screenTimeWindow.isDestroyed()) { 
+  if (screenTimeWindow && !screenTimeWindow.isDestroyed()) {
     if (isTimeUp) {
       screenTimeWindow.setKiosk(true);
       screenTimeWindow.setAlwaysOnTop(true, 'screen-saver');
+      createCoverWindows();
     } else {
       screenTimeWindow.setKiosk(false);
       screenTimeWindow.setAlwaysOnTop(false);
+      destroyCoverWindows();
     }
-    screenTimeWindow.show(); 
-    screenTimeWindow.focus(); 
-    return; 
+    screenTimeWindow.show();
+    screenTimeWindow.focus();
+    return;
   }
-  
+
   screenTimeWindow = new BrowserWindow({
-    width: 440, height: 600,
+    width: 440, height: 620,
     resizable: false,
     kiosk: isTimeUp,
     alwaysOnTop: isTimeUp,
     frame: !isTimeUp,
     skipTaskbar: isTimeUp,
+    closable: !isTimeUp,
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b1d22' : '#f4f5f7',
     webPreferences:{ nodeIntegration:false, contextIsolation:true, preload:PRELOAD }
   });
-  
-  if (isTimeUp) screenTimeWindow.setAlwaysOnTop(true, 'screen-saver');
+
+  if (isTimeUp) {
+    screenTimeWindow.setAlwaysOnTop(true, 'screen-saver');
+    createCoverWindows();
+  }
 
   screenTimeWindow.loadFile(path.join(__dirname, 'screentime.html'));
   screenTimeWindow.setMenu(null);
-  
+
   screenTimeWindow.on('close', (e) => {
     if (getRemaining() === 0 && !app.isQuitting) {
       e.preventDefault();
@@ -533,7 +621,7 @@ function openScreenTimeWindow() {
 function createTray() {
   const iconPath = path.join(__dirname, '..', 'assets', 'icons', 'win', 'icon.ico');
   tray = new Tray(iconPath);
-  tray.setToolTip('ContentBlocker');
+  tray.setToolTip('STRIPARCO');
   tray.on('click', openMainWindow);
   buildTrayMenu();
 }
@@ -554,39 +642,18 @@ async function protectExit() {
   if (!config.password_protected) {
     doExit(); return;
   }
-  
-  // Open a small password prompt window
-  let exitWindow = new BrowserWindow({
-    width: 300, height: 180, resizable: false, frame: false, alwaysOnTop: true,
-    webPreferences: { nodeIntegration: false, contextIsolation: true, preload: PRELOAD }
+  // Don't allow exiting while the machine is locked out.
+  if (limitReached && getRemaining() === 0) return;
+
+  let exitWindow = makeWindow('exit.html', {
+    width: 320, height: 200, resizable: false, frame: false, alwaysOnTop: true,
   });
-  
-  exitWindow.loadURL(`data:text/html;charset=utf-8,
-    <style>
-      body{background:%231a1a2e;color:white;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0;height:100vh}
-      input{padding:8px;margin:10px;border-radius:4px;border:none}
-      button{padding:8px 16px;cursor:pointer;background:%2300d4ff;border:none;border-radius:4px;color:black;font-weight:bold}
-    </style>
-    <div>${tr('exit_prompt')}</div>
-    <input type="password" id="p" placeholder="${tr('exit_ph')}" autofocus>
-    <div id="e" style="color:red;font-size:12px;margin-bottom:5px"></div>
-    <div style="display:flex;gap:10px">
-      <button id="b">${tr('exit_ok')}</button>
-      <button onclick="window.close()">${tr('exit_cancel')}</button>
-    </div>
-    <script>
-      document.getElementById('b').onclick = async () => {
-        const ok = await window.api.checkPassword(document.getElementById('p').value);
-        if(ok.ok) window.api.confirmExit();
-        else document.getElementById('e').innerText = '${tr('exit_wrong')}';
-      };
-      document.getElementById('p').onkeydown = e => { if(e.key==='Enter') document.getElementById('b').click(); };
-    </script>
-  `.replace(/%/g, '%25')); // Simple data URL prompt
+  exitWindow.on('closed', () => { exitWindow = null; });
 }
 
 function doExit() {
   app.isQuitting = true;
+  stopLockoutEnforcer();
   // Kill the watchdog BEFORE quitting, so it doesn't restart us
   if (watchdogProcess) {
     try { process.kill(watchdogProcess.pid); } catch(e) {}
@@ -626,11 +693,12 @@ ipcMain.handle('save-config', (_, incoming) => {
          .map(s => s.toLowerCase().replace(/[\s\r\n]/g, '').trim())
          .filter(s => s.length > 1 && s.length < 100);
     }
-    const allowedKeys = ['screen_time_limit','auto_start','custom_blocked_sites','lang'];
+    const allowedKeys = ['screen_time_limit','auto_start','custom_blocked_sites','lang','theme'];
     for (const k of allowedKeys) { if (k in incoming) config[k] = incoming[k]; }
     saveConfig();
     updateHosts();
     if ('auto_start' in incoming) setAutoStart(incoming.auto_start);
+    if ('theme' in incoming) applyTheme();
     if ('lang' in incoming) { buildTrayMenu(); updateTray(); }
     broadcastConfigChanged();
     return { success:true };
@@ -691,6 +759,7 @@ ipcMain.handle('add-time', (_, data) => {
   screenTimeSecondsUsed = Math.max(0, screenTimeSecondsUsed - safeMins * 60);
   limitReached = false;
   saveConfig();
+  stopLockoutEnforcer();
   if (screenTimeWindow && !screenTimeWindow.isDestroyed()) {
     screenTimeWindow.setKiosk(false);
     screenTimeWindow.setAlwaysOnTop(false);
@@ -720,20 +789,21 @@ else {
     try {
       fs.writeFileSync(BLOCKED_HTML_PATH, fs.readFileSync(path.join(__dirname, 'blocked.html')));
     } catch(e) {}
-    
+
     loadConfig();
+    applyTheme();
     updateHosts();
     if (config.auto_start) setAutoStart(true);
     if (config.password_protected) preventUninstallation();
     createTray();
-    
+
     if (!process.argv.includes('--hidden')) {
       openMainWindow();
     }
-    
+
     startTimers();
     updateTray();
-    
+
     // Add signal handler for graceful termination (e.g., system shutdown)
     process.on('SIGTERM', () => { saveConfig(); });
 
@@ -761,9 +831,9 @@ else {
 
   app.on('window-all-closed', e => e.preventDefault());
   app.on('quit', () => { saveConfig(); });
-  app.on('before-quit', () => { 
-    app.isQuitting = true; 
-    saveConfig(); 
+  app.on('before-quit', () => {
+    app.isQuitting = true;
+    saveConfig();
     if (watchdogProcess) {
       try { process.kill(watchdogProcess.pid); } catch(e) {}
     }

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title id="pgTitle">Tartalom blokkolva</title>
+  <style>
+    :root {
+      --bg: #f4f5f7; --surface: #ffffff; --border: #d9dce1;
+      --text: #1d1f24; --muted: #6a6f78; --danger: #c5362c;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1b1d22; --surface: #25282e; --border: #3a3f48;
+        --text: #eceef1; --muted: #9aa0aa; --danger: #e5685e;
+      }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center; padding: 24px;
+    }
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 40px 48px; max-width: 560px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+    }
+    .icon { font-size: 3.4em; margin-bottom: 16px; }
+    h1 { font-size: 1.6em; color: var(--danger); margin-bottom: 14px; font-weight: 650; }
+    p { font-size: 1.02em; color: var(--muted); line-height: 1.55; margin-bottom: 22px; }
+    .shield {
+      display: inline-block; border: 1px solid var(--border);
+      padding: 10px 22px; border-radius: 9px; font-size: 0.9em; color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    .brand { font-weight: 700; letter-spacing: 0.12em; color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="icon">⛔</div>
+    <h1 id="h1">Tartalom blokkolva</h1>
+    <p id="p">A kért weboldal nem felel meg a STRIPARCO tartalomszűrési házirendjének, ezért a hozzáférést letiltottuk.</p>
+    <div class="shield" id="shield"><span class="brand">STRIPARCO</span> · aktív védelem</div>
+  </div>
+  <script>
+    if (!(navigator.language || '').toLowerCase().startsWith('hu')) {
+      document.documentElement.lang = 'en';
+      document.getElementById('pgTitle').textContent = 'Content blocked';
+      document.getElementById('h1').textContent = 'Content blocked';
+      document.getElementById('p').textContent = 'The requested website does not meet the STRIPARCO content policy, so access has been blocked.';
+      document.getElementById('shield').innerHTML = '<span class="brand">STRIPARCO</span> · active protection';
+    }
+  </script>
+</body>
+</html>

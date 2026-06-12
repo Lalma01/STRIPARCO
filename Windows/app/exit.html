@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="theme.css">
+  <style>
+    body { padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; height: 100vh; }
+    h2 { font-size: 1rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <h2 id="prompt">Jelszó szükséges a kilépéshez</h2>
+  <input type="password" id="pw" autofocus style="max-width:220px">
+  <div id="err" class="err-text"></div>
+  <div style="display:flex;gap:10px">
+    <button class="btn btn-primary" id="ok">OK</button>
+    <button class="btn btn-secondary" id="cancel">Mégse</button>
+  </div>
+  <script>
+    if (!(navigator.language || '').toLowerCase().startsWith('hu')) {
+      document.getElementById('prompt').textContent = 'Password required to exit';
+      document.getElementById('ok').textContent = 'OK';
+      document.getElementById('cancel').textContent = 'Cancel';
+    }
+    const wrong = (navigator.language || '').toLowerCase().startsWith('hu') ? 'Hibás jelszó' : 'Wrong password';
+    document.getElementById('cancel').addEventListener('click', () => window.close());
+    document.getElementById('ok').addEventListener('click', async () => {
+      const r = await window.api.checkPassword(document.getElementById('pw').value);
+      if (r.ok) window.api.confirmExit();
+      else document.getElementById('err').textContent = wrong;
+    });
+    document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('ok').click(); });
+  </script>
+</body>
+</html>

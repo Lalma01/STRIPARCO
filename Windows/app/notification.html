@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="theme.css">
+  <style>
+    body { background: transparent; overflow: hidden; user-select: none; padding: 0; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--danger);
+      border-radius: 12px;
+      padding: 16px 18px 12px;
+      box-shadow: var(--shadow);
+      animation: slideIn 0.25s ease;
+      position: relative;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(110%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+    .header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .icon { font-size: 1.3em; }
+    .title { font-size: 0.94em; font-weight: 700; color: var(--danger); letter-spacing: 0.02em; }
+    .body { font-size: 0.83em; color: var(--muted); margin-bottom: 10px; line-height: 1.45; word-break: break-word; }
+    .reason {
+      display: inline-block; background: var(--danger-soft);
+      border: 1px solid var(--danger); border-radius: 6px;
+      padding: 3px 8px; font-size: 0.78em; color: var(--danger); margin-top: 4px;
+    }
+    .close-btn {
+      position: absolute; top: 10px; right: 12px;
+      background: none; border: none; color: var(--muted);
+      font-size: 1.05em; cursor: pointer; line-height: 1;
+    }
+    .close-btn:hover { color: var(--text); }
+    .progress { height: 3px; background: var(--surface-2); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+    .progress-bar { height: 100%; background: var(--danger); width: 100%; transition: width 1s linear; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <button class="close-btn" id="closeBtn">✕</button>
+    <div class="header">
+      <span class="icon">⛔</span>
+      <span class="title" data-i18n="nt_title">TARTALOM BLOKKOLVA</span>
+    </div>
+    <div class="body">
+      <span data-i18n="nt_body">A böngésző tiltott tartalmat nyitott meg.</span><br>
+      <strong id="matchedKw" class="reason">–</strong>
+    </div>
+    <div class="progress"><div class="progress-bar" id="bar"></div></div>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script>
+    (async () => {
+      try { const cfg = await window.api.getConfig(); window.setLang(cfg.lang); window.applyI18n(); } catch(e) {}
+    })();
+
+    const bar = document.getElementById('bar');
+    let timer = 7;
+    let tick = null;
+
+    function startCountdown() {
+      if (tick) clearInterval(tick);
+      timer = 7;
+      bar.style.width = '100%';
+      tick = setInterval(() => {
+        timer--;
+        bar.style.width = (timer / 7 * 100) + '%';
+        if (timer <= 0) { clearInterval(tick); tick = null; window.api.closeNotification(); }
+      }, 1000);
+    }
+
+    startCountdown();
+
+    document.getElementById('closeBtn').addEventListener('click', () => {
+      if (tick) clearInterval(tick);
+      window.api.closeNotification();
+    });
+
+    window.api.onNotification(({ title, keyword }) => {
+      document.getElementById('matchedKw').textContent = window.t('nt_reason') + keyword;
+      startCountdown();
+    });
+  </script>
+</body>
+</html>

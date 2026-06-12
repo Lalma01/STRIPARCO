@@ -1,16 +1,16 @@
 {
-  "name": "content-blocker",
-  "version": "1.11.0",
-  "description": "Windows NSFW / AI content filter & screen time blocker",
-  "author": "Lalma01",
+  "name": "striparco",
+  "version": "1.12.11",
+  "description": "STRIPARCO – Windows NSFW / NSFW-AI content filter & screen time guard",
+  "author": "STRIPARCO",
   "main": "app/main.js",
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --win --ia32 --x64"
   },
   "build": {
-    "appId": "com.contentblocker.app",
-    "productName": "ContentBlocker",
+    "appId": "com.striparco.app",
+    "productName": "STRIPARCO",
     "directories": {
       "buildResources": "assets",
       "output": "dist"
@@ -31,7 +31,7 @@
         }
       ],
       "icon": "assets/icons/win/icon.ico",
-      "publisherName": "Lalma01",
+      "publisherName": "STRIPARCO",
       "requestedExecutionLevel": "requireAdministrator",
       "signAndEditExecutable": false,
       "sign": null
