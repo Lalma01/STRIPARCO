@@ -19,6 +19,9 @@ Two protections work together:
 2. **Screen-time guard** — enforces a configurable daily time budget. When the budget is
    spent, the machine is locked down until time is added with the password.
 
+> **Related:** a full-parity Android port lives in [`../Android/`](../Android/)
+> (see its [`README.md`](../Android/README.md)).
+
 ---
 
 ## 2. Features
@@ -26,11 +29,12 @@ Two protections work together:
 | Area | Behaviour |
 |------|-----------|
 | **Website blocking** | The Windows `hosts` file redirects known adult / NSFW-AI domains to `127.0.0.1`. The list is self-repaired every 5 minutes. |
-| **Browser-title monitor** | A background PowerShell loop reports browser window titles ~once per second. Matching titles trigger a redirect to the local block page plus an on-screen notice. |
+| **Browser-title monitor** | A background PowerShell loop reports browser window titles ~once per second. Matching titles trigger a redirect to the local block page plus an on-screen notice. The redirect **preserves and restores the user's clipboard**. |
 | **Keyword tiers** | *Strong* keywords block on a single match. *Weak / ambiguous* keywords (e.g. "dating", "escort") only block when at least two appear in the same title — reducing false positives. |
 | **AI allow-list** | Mainstream AI assistant domains and titles are never blocked. |
-| **Screen-time limit** | A daily limit in minutes (0 = unlimited). Warnings appear at 15, 5 and 1 minutes remaining. |
+| **Screen-time limit** | A daily limit in minutes (0 = unlimited). Warnings appear **once** at 15, 5 and 1 minute(s) remaining; they re-arm after time is added. |
 | **Lock-out** | When time runs out, all browsers are closed and a full-screen kiosk window covers every display. Only the password prompt (to add time) is usable. |
+| **Password-protected settings** | When a password is set, the **main process** (not just the UI) requires it to change the screen-time limit, auto-start or the custom blocklist, and to add time or exit. **Theme and language stay changeable without the password** (cosmetic, safe). |
 | **Theme** | Follows the Windows light/dark setting automatically; can be forced to Light or Dark in Settings. |
 | **Bilingual UI** | English / Hungarian, auto-detected on first run, switchable in Settings. |
 | **Persistence** | A watchdog process restarts the app if it is killed; the uninstaller entry is hidden while protection is active. |
@@ -133,6 +137,12 @@ Settings are stored in:
 The password is never stored in clear text; only its SHA-256 hash is kept and the hash is
 never sent to any renderer.
 
+**Password enforcement.** Changes to `screen_time_limit`, `auto_start` and
+`custom_blocked_sites` are validated against the hash **in the main process** (`save-config`),
+so they cannot be bypassed from the renderer. `theme` and `lang` are intentionally exempt.
+After unlocking the Settings window once, the entered password is reused for that session's
+protected saves so the user is not re-prompted repeatedly.
+
 ---
 
 ## 7. Building the installer
@@ -190,6 +200,9 @@ Két védelem dolgozik együtt:
 2. **Képernyőidő-felügyelet** — beállítható napi időkeretet tart be. Ha az időkeret
    elfogy, a gép zárolódik, amíg jelszóval időt nem adunk hozzá.
 
+> **Kapcsolódó:** a teljes funkciójú Android port a [`../Android/`](../Android/) mappában
+> található (lásd a [`README.md`](../Android/README.md)-t).
+
 ---
 
 ## 2. Funkciók
@@ -197,11 +210,12 @@ Két védelem dolgozik együtt:
 | Terület | Működés |
 |---------|---------|
 | **Weboldal-tiltás** | A Windows `hosts` fájl a felnőtt / NSFW-AI domaineket a `127.0.0.1`-re irányítja. A lista 5 percenként önjavul. |
-| **Böngésző-cím figyelés** | Egy háttérben futó PowerShell ciklus kb. másodpercenként jelenti a böngészők címsorát. A talált címek átirányítást és figyelmeztető buborékot váltanak ki. |
+| **Böngésző-cím figyelés** | Egy háttérben futó PowerShell ciklus kb. másodpercenként jelenti a böngészők címsorát. A talált címek átirányítást és figyelmeztető buborékot váltanak ki. Az átirányítás **megőrzi és visszaállítja a felhasználó vágólapját**. |
 | **Kulcsszó-szintek** | Az *erős* kulcsszavak egyetlen találatra is blokkolnak. A *gyenge / kétértelmű* szavak (pl. „dating”, „escort”) csak akkor, ha legalább kettő szerepel együtt — így kevesebb a téves találat. |
 | **AI engedélyező lista** | A bevett AI asszisztensek domainjei és címei soha nincsenek tiltva. |
-| **Képernyőidő-korlát** | Napi limit percben (0 = korlátlan). Figyelmeztetés 15, 5 és 1 perc maradékánál. |
+| **Képernyőidő-korlát** | Napi limit percben (0 = korlátlan). Figyelmeztetés **egyszer** 15, 5 és 1 perc maradéknál; idő hozzáadása után újra élesednek. |
 | **Zárolás** | Az idő lejártakor minden böngésző bezárul, és egy teljes képernyős kiosk ablak takar minden kijelzőt. Csak a jelszó megadása (idő hozzáadása) használható. |
+| **Jelszóvédett beállítások** | Ha van jelszó, a **fő folyamat** (nem csak a felület) megköveteli azt a képernyőidő-korlát, az automatikus indítás és az egyéni tiltólista módosításához, valamint idő hozzáadásához és kilépéshez. A **téma és a nyelv jelszó nélkül is módosítható** (kozmetikai, biztonságos). |
 | **Téma** | Automatikusan követi a Windows világos/sötét beállítását; a Beállításokban kézzel Világosra vagy Sötétre is állítható. |
 | **Kétnyelvű felület** | Magyar / angol, első indításkor automatikus felismeréssel, a Beállításokban váltható. |
 | **Védelem** | Egy watchdog folyamat újraindítja az alkalmazást, ha leállítják; az eltávolító bejegyzés rejtve van, amíg a védelem aktív. |
@@ -304,6 +318,12 @@ A beállítások helye:
 
 A jelszó soha nem kerül tárolásra nyílt szövegként; csak az SHA-256 lenyomata, amely
 sosem jut el egyetlen renderer ablakhoz sem.
+
+**Jelszó-kényszerítés.** A `screen_time_limit`, `auto_start` és `custom_blocked_sites`
+módosítását a **fő folyamat** ellenőrzi a lenyomattal (`save-config`), így a renderer felől
+nem kerülhető meg. A `theme` és a `lang` szándékosan kivétel. A Beállítások egyszeri
+feloldása után a megadott jelszót a munkamenet védett mentéseihez újrahasználja, hogy ne
+kelljen ismételten beírni.
 
 ---
 

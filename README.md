@@ -9,7 +9,6 @@ light/dark theme and is available in English and Hungarian.
 
 - Source code, build script and installer live in the [`Windows/`](Windows/) folder.
 - Full documentation: [`Windows/DOCUMENTATION.md`](Windows/DOCUMENTATION.md).
-- Code analysis / known bugs: [`Windows/BUGS.md`](Windows/BUGS.md).
 - **Android port** (full feature parity): [`Android/`](Android/) — see [`Android/README.md`](Android/README.md).
 - All filtering happens on the device — no data leaves the machine.
 
