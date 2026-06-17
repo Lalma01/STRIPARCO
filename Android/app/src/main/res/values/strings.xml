@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">STRIPARCO</string>
+    <string name="idx_sub">Actively protects your browser from unwanted content</string>
+
+    <!-- Dashboard -->
+    <string name="lbl_status">Status</string>
+    <string name="lbl_blocked">Blocked sites</string>
+    <string name="lbl_pw">Password protection</string>
+    <string name="lbl_screentime">Screen time</string>
+    <string name="lbl_autostart">Auto-start</string>
+    <string name="lbl_custom">Custom filters</string>
+    <string name="val_active">Active</string>
+    <string name="val_pw_set">Enabled</string>
+    <string name="val_pw_none">None</string>
+    <string name="val_unlimited">Unlimited</string>
+    <string name="val_expired">Expired!</string>
+    <string name="val_on">Enabled</string>
+    <string name="val_off">Disabled</string>
+    <string name="unit_items">pcs</string>
+    <string name="btn_settings">⚙ Settings</string>
+    <string name="btn_screentime">⏱ Screen Time</string>
+    <string name="enable_protection">Enable protection</string>
+    <string name="footer_text">All filtering is local · No data is sent</string>
+
+    <!-- Settings -->
+    <string name="set_title">Settings – STRIPARCO</string>
+    <string name="set_h1">Settings</string>
+    <string name="theme_h2">Appearance</string>
+    <string name="theme_label">Theme:</string>
+    <string name="theme_system">Match system (automatic)</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="lock_h2">Password-protected settings</string>
+    <string name="lock_ph">Enter password</string>
+    <string name="lock_btn">Unlock</string>
+    <string name="lock_wrong">Wrong password!</string>
+    <string name="pw_h2">Password protection</string>
+    <string name="pw_newlabel">New password (min. 4 characters):</string>
+    <string name="pw_ph">Password</string>
+    <string name="pw_confirmlabel">Confirmation:</string>
+    <string name="pw_confirm_ph">Confirm password</string>
+    <string name="pw_setbtn">Set password</string>
+    <string name="pw_delbtn">Remove password</string>
+    <string name="pw_min_msg">Minimum 4 characters!</string>
+    <string name="pw_nomatch_msg">The two passwords do not match!</string>
+    <string name="pw_prompt_old">Enter the current password to change it:</string>
+    <string name="pw_set_ok">Password set successfully!</string>
+    <string name="pw_err">An error occurred!</string>
+    <string name="pw_del_prompt">Enter the current password to remove it:</string>
+    <string name="pw_deleted">Password removed.</string>
+    <string name="time_h2">Screen time limit</string>
+    <string name="time_label">Daily limit (minutes, 0 = unlimited):</string>
+    <string name="btn_save">Save</string>
+    <string name="time_prompt_pw">Enter the password to change the screen time limit:</string>
+    <string name="msg_saved">Saved!</string>
+    <string name="msg_err">Error: </string>
+    <string name="auto_h2">Auto-start</string>
+    <string name="auto_label">Start on boot</string>
+    <string name="block_h2">Custom blocklist</string>
+    <string name="block_label">Add a domain or keyword:</string>
+    <string name="block_ph">e.g. example.com or keyword</string>
+    <string name="block_add">Add</string>
+    <string name="block_exists">Already on the list!</string>
+    <string name="block_added">Added!</string>
+    <string name="lang_h2">Language / Nyelv</string>
+    <string name="lang_label">Interface language:</string>
+    <string name="close_btn">Close</string>
+
+    <!-- Screen time -->
+    <string name="st_title">Screen Time – STRIPARCO</string>
+    <string name="st_h1">Screen Time</string>
+    <string name="st_sub">Daily screen time limit</string>
+    <string name="ring_left">left</string>
+    <string name="ring_unlimited">unlimited</string>
+    <string name="card_used">Used</string>
+    <string name="card_limit">Daily limit</string>
+    <string name="limit_msg">⚠ Daily screen time limit reached!</string>
+    <string name="add_btn">+ Add 15 minutes</string>
+    <string name="st_lock_h2">Password-protected action</string>
+    <string name="st_lock_p">Enter the password to add time</string>
+    <string name="st_lock_cancel">Cancel</string>
+    <string name="unit_min">min</string>
+    <string name="err_generic">An error occurred!</string>
+
+    <!-- Blocked / notification -->
+    <string name="bl_title">Content blocked</string>
+    <string name="bl_h1">Content blocked</string>
+    <string name="bl_p">The requested website does not meet the STRIPARCO content policy, so access has been blocked.</string>
+    <string name="bl_shield">STRIPARCO · active protection</string>
+    <string name="nt_title">CONTENT BLOCKED</string>
+    <string name="nt_body">The browser opened blocked content.</string>
+    <string name="nt_reason">Reason: </string>
+
+    <!-- Notifications / services -->
+    <string name="notif_filter_active">Content filter active</string>
+    <string name="notif_time_title">Screen Time</string>
+    <string name="notif_15">15 minutes left!</string>
+    <string name="notif_5">5 minutes left!</string>
+    <string name="notif_1">1 minute left!</string>
+    <string name="notif_limit">Daily screen time limit reached.</string>
+    <string name="tray_unlimited">Unlimited</string>
+    <string name="tray_left">left</string>
+
+    <!-- Errors -->
+    <string name="err_pw_old">Wrong current password</string>
+    <string name="err_pw_min">Minimum 4 characters required</string>
+    <string name="err_pw_wrong">Wrong password</string>
+
+    <!-- Units -->
+    <string name="unit_hour">h</string>
+    <string name="unit_min_short">m</string>
+    <string name="unit_sec_short">s</string>
+
+    <!-- Permissions / admin -->
+    <string name="admin_disable_warning">STRIPARCO protection is active. Disabling this will remove tamper protection.</string>
+    <string name="perm_accessibility_title">Enable browser monitoring</string>
+    <string name="perm_accessibility_msg">STRIPARCO needs the Accessibility service to detect and block NSFW content in your browser. Enable STRIPARCO in the next screen.</string>
+    <string name="perm_overlay_title">Allow display over other apps</string>
+    <string name="perm_overlay_msg">This permission lets the screen-time lockout and blocked notices appear on top of other apps.</string>
+    <string name="perm_open">Open settings</string>
+    <string name="accessibility_description">Monitors browser titles to block NSFW and NSFW-AI content. All processing is on-device.</string>
+
+    <string-array name="theme_options">
+        <item>@string/theme_system</item>
+        <item>@string/theme_light</item>
+        <item>@string/theme_dark</item>
+    </string-array>
+</resources>

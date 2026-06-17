@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light palette (mirrors theme.css :root). -->
+    <color name="bg">#F4F5F7</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface2">#EEF0F3</color>
+    <color name="border">#D9DCE1</color>
+    <color name="text">#1D1F24</color>
+    <color name="muted">#6A6F78</color>
+    <color name="accent">#3461D6</color>
+    <color name="accent_text">#FFFFFF</color>
+    <color name="danger">#C5362C</color>
+    <color name="success">#1F8A4C</color>
+    <color name="warning">#C47D12</color>
+    <color name="lockout_bg">#0D0E12</color>
+</resources>

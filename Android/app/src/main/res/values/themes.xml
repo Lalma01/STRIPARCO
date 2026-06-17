@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Striparco" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/accent</item>
+        <item name="colorOnPrimary">@color/accent_text</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:textColor">@color/text</item>
+        <item name="android:statusBarColor">@color/bg</item>
+    </style>
+
+    <!-- Full-screen lockout: dark, immersive, no system chrome. -->
+    <style name="Theme.Striparco.Lockout" parent="Theme.Striparco">
+        <item name="android:windowBackground">@color/lockout_bg</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:statusBarColor">@color/lockout_bg</item>
+        <item name="android:navigationBarColor">@color/lockout_bg</item>
+    </style>
+</resources>

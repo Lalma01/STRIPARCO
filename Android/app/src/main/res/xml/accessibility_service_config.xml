@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/accessibility_description"
+    android:notificationTimeout="300"
+    android:packageNames="com.android.chrome,org.mozilla.firefox,com.microsoft.emmx,com.opera.browser,com.opera.gx,com.brave.browser,com.vivaldi.browser,com.sec.android.app.sbrowser,com.duckduckgo.mobile.android,com.kiwibrowser.browser,com.UCMobile.intl,mark.via.gp,org.torproject.torbrowser,com.yandex.browser,com.ecosia.android,acr.browser.lightning" />

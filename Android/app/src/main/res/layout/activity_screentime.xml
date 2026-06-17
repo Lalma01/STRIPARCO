@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/st_h1"
+            android:textColor="@color/text"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/st_sub"
+            android:textColor="@color/muted"
+            android:textSize="13sp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="24dp" />
+
+        <FrameLayout
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_marginBottom="24dp">
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/ring"
+                android:layout_width="200dp"
+                android:layout_height="200dp"
+                app:indicatorSize="200dp"
+                app:trackThickness="12dp"
+                app:indicatorColor="@color/accent"
+                app:trackColor="@color/surface2"
+                app:indicatorInset="0dp"
+                android:max="100"
+                android:progress="0" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center">
+                <TextView android:id="@+id/ringTime"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="–" android:textColor="@color/accent"
+                    android:textSize="28sp" android:textStyle="bold" />
+                <TextView android:id="@+id/ringLabel"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="@string/ring_left" android:textColor="@color/muted"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <com.google.android.material.card.MaterialCardView style="@style/StatCard">
+                <LinearLayout style="@style/StatInner" android:gravity="center">
+                    <TextView android:id="@+id/usedVal" style="@style/StatValue" android:textColor="@color/success" />
+                    <TextView style="@style/StatLabel" android:text="@string/card_used" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+            <com.google.android.material.card.MaterialCardView style="@style/StatCard">
+                <LinearLayout style="@style/StatInner" android:gravity="center">
+                    <TextView android:id="@+id/limitVal" style="@style/StatValue" android:textColor="@color/success" />
+                    <TextView style="@style/StatLabel" android:text="@string/card_limit" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+
+        <TextView android:id="@+id/limitMsg"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="@string/limit_msg" android:textColor="@color/danger"
+            android:textSize="15sp" android:textStyle="bold"
+            android:gravity="center"
+            android:visibility="gone"
+            android:layout_marginTop="20dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/addTimeBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/add_btn"
+            android:layout_marginTop="20dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/closeBtn"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/close_btn"
+            android:layout_marginTop="10dp" />
+    </LinearLayout>
+</ScrollView>

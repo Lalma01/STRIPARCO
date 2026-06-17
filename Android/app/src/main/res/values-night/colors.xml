@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark palette (mirrors theme.css prefers-color-scheme: dark). -->
+    <color name="bg">#1B1D22</color>
+    <color name="surface">#25282E</color>
+    <color name="surface2">#2E323A</color>
+    <color name="border">#3A3F48</color>
+    <color name="text">#ECEEF1</color>
+    <color name="muted">#9AA0AA</color>
+    <color name="accent">#5B86E5</color>
+    <color name="accent_text">#FFFFFF</color>
+    <color name="danger">#E5685E</color>
+    <color name="success">#57C98A</color>
+    <color name="warning">#E0A73C</color>
+    <color name="lockout_bg">#000000</color>
+</resources>

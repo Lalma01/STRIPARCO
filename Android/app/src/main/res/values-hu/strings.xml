@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">STRIPARCO</string>
+    <string name="idx_sub">Aktívan védi a böngészőt a nem kívánt tartalmaktól</string>
+
+    <string name="lbl_status">Állapot</string>
+    <string name="lbl_blocked">Blokkolt oldalak</string>
+    <string name="lbl_pw">Jelszóvédelem</string>
+    <string name="lbl_screentime">Képernyőidő</string>
+    <string name="lbl_autostart">Automatikus indítás</string>
+    <string name="lbl_custom">Egyéni szűrők</string>
+    <string name="val_active">Aktív</string>
+    <string name="val_pw_set">Beállítva</string>
+    <string name="val_pw_none">Nincs</string>
+    <string name="val_unlimited">Korlátlan</string>
+    <string name="val_expired">Lejárt!</string>
+    <string name="val_on">Bekapcsolva</string>
+    <string name="val_off">Kikapcsolva</string>
+    <string name="unit_items">db</string>
+    <string name="btn_settings">⚙ Beállítások</string>
+    <string name="btn_screentime">⏱ Képernyőidő</string>
+    <string name="enable_protection">Védelem bekapcsolása</string>
+    <string name="footer_text">Minden szűrés helyi · Nincs adatküldés</string>
+
+    <string name="set_title">Beállítások – STRIPARCO</string>
+    <string name="set_h1">Beállítások</string>
+    <string name="theme_h2">Megjelenés</string>
+    <string name="theme_label">Téma:</string>
+    <string name="theme_system">Rendszer szerint (automatikus)</string>
+    <string name="theme_light">Világos</string>
+    <string name="theme_dark">Sötét</string>
+    <string name="lock_h2">Jelszóvédett beállítások</string>
+    <string name="lock_ph">Írd be a jelszót</string>
+    <string name="lock_btn">Feloldás</string>
+    <string name="lock_wrong">Hibás jelszó!</string>
+    <string name="pw_h2">Jelszóvédelem</string>
+    <string name="pw_newlabel">Új jelszó (min. 4 karakter):</string>
+    <string name="pw_ph">Jelszó</string>
+    <string name="pw_confirmlabel">Megerősítés:</string>
+    <string name="pw_confirm_ph">Jelszó megerősítése</string>
+    <string name="pw_setbtn">Jelszó beállítása</string>
+    <string name="pw_delbtn">Jelszó törlése</string>
+    <string name="pw_min_msg">Min. 4 karakter!</string>
+    <string name="pw_nomatch_msg">A két jelszó nem egyezik!</string>
+    <string name="pw_prompt_old">Add meg a jelenlegi jelszót a módosításhoz:</string>
+    <string name="pw_set_ok">Jelszó sikeresen beállítva!</string>
+    <string name="pw_err">Hiba történt!</string>
+    <string name="pw_del_prompt">Add meg a jelenlegi jelszót a törléshez:</string>
+    <string name="pw_deleted">Jelszó törölve.</string>
+    <string name="time_h2">Képernyőidő-korlát</string>
+    <string name="time_label">Napi limit (perc, 0 = korlátlan):</string>
+    <string name="btn_save">Mentés</string>
+    <string name="time_prompt_pw">Add meg a jelszót a képernyőidő-korlát módosításához:</string>
+    <string name="msg_saved">Mentve!</string>
+    <string name="msg_err">Hiba: </string>
+    <string name="auto_h2">Automatikus indítás</string>
+    <string name="auto_label">Induljon el rendszerindításkor</string>
+    <string name="block_h2">Egyéni tiltólista</string>
+    <string name="block_label">Domain vagy kulcsszó hozzáadása:</string>
+    <string name="block_ph">pl. example.com vagy kulcsszó</string>
+    <string name="block_add">Hozzáad</string>
+    <string name="block_exists">Már szerepel a listán!</string>
+    <string name="block_added">Hozzáadva!</string>
+    <string name="lang_h2">Nyelv / Language</string>
+    <string name="lang_label">Felület nyelve:</string>
+    <string name="close_btn">Bezárás</string>
+
+    <string name="st_title">Képernyőidő – STRIPARCO</string>
+    <string name="st_h1">Képernyőidő</string>
+    <string name="st_sub">Napi képernyőidő-korlát</string>
+    <string name="ring_left">maradt</string>
+    <string name="ring_unlimited">korlátlan</string>
+    <string name="card_used">Felhasznált</string>
+    <string name="card_limit">Napi limit</string>
+    <string name="limit_msg">⚠ A napi képernyőidő-korlát elérve!</string>
+    <string name="add_btn">+ 15 perc hozzáadása</string>
+    <string name="st_lock_h2">Jelszóvédett művelet</string>
+    <string name="st_lock_p">Add meg a jelszót az idő hozzáadásához</string>
+    <string name="st_lock_cancel">Mégse</string>
+    <string name="unit_min">perc</string>
+    <string name="err_generic">Hiba történt!</string>
+
+    <string name="bl_title">Tartalom blokkolva</string>
+    <string name="bl_h1">Tartalom blokkolva</string>
+    <string name="bl_p">A kért weboldal nem felel meg a STRIPARCO tartalomszűrési házirendjének, ezért a hozzáférést letiltottuk.</string>
+    <string name="bl_shield">STRIPARCO · aktív védelem</string>
+    <string name="nt_title">TARTALOM BLOKKOLVA</string>
+    <string name="nt_body">A böngésző tiltott tartalmat nyitott meg.</string>
+    <string name="nt_reason">Indok: </string>
+
+    <string name="notif_filter_active">Tartalomszűrő aktív</string>
+    <string name="notif_time_title">Képernyőidő</string>
+    <string name="notif_15">15 perc maradt!</string>
+    <string name="notif_5">5 perc maradt!</string>
+    <string name="notif_1">1 perc maradt!</string>
+    <string name="notif_limit">A napi képernyőidő-korlát elérve.</string>
+    <string name="tray_unlimited">Korlátlan</string>
+    <string name="tray_left">maradt</string>
+
+    <string name="err_pw_old">Hibás régi jelszó</string>
+    <string name="err_pw_min">Min. 4 karakter szükséges</string>
+    <string name="err_pw_wrong">Hibás jelszó</string>
+
+    <string name="unit_hour">ó</string>
+    <string name="unit_min_short">p</string>
+    <string name="unit_sec_short">mp</string>
+
+    <string name="admin_disable_warning">A STRIPARCO védelem aktív. A kikapcsolása eltávolítja a manipuláció elleni védelmet.</string>
+    <string name="perm_accessibility_title">Böngészőfigyelés engedélyezése</string>
+    <string name="perm_accessibility_msg">A STRIPARCO-nak szüksége van a Kisegítő lehetőségek szolgáltatásra a böngészőben megjelenő NSFW tartalom észleléséhez és blokkolásához. A következő képernyőn engedélyezd a STRIPARCO-t.</string>
+    <string name="perm_overlay_title">Megjelenítés más alkalmazások felett</string>
+    <string name="perm_overlay_msg">Ez az engedély teszi lehetővé, hogy a képernyőidő-zár és a blokkolási értesítések más alkalmazások felett jelenjenek meg.</string>
+    <string name="perm_open">Beállítások megnyitása</string>
+    <string name="accessibility_description">Figyeli a böngésző címsorát az NSFW és NSFW-AI tartalmak blokkolásához. Minden feldolgozás a készüléken történik.</string>
+
+    <string-array name="theme_options">
+        <item>@string/theme_system</item>
+        <item>@string/theme_light</item>
+        <item>@string/theme_dark</item>
+    </string-array>
+</resources>

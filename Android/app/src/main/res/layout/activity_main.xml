@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textColor="@color/text"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.14"
+            android:layout_marginTop="12dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/idx_sub"
+            android:textColor="@color/muted"
+            android:textSize="13sp"
+            android:gravity="center"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="20dp" />
+
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:useDefaultMargins="false">
+
+            <!-- Status -->
+            <com.google.android.material.card.MaterialCardView style="@style/StatCard">
+                <LinearLayout style="@style/StatInner">
+                    <TextView style="@style/StatLabel" android:text="@string/lbl_status" />
+                    <TextView android:id="@+id/statusValue" style="@style/StatValue" android:textColor="@color/success" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Blocked -->
+            <com.google.android.material.card.MaterialCardView style="@style/StatCard">
+                <LinearLayout style="@style/StatInner">
+                    <TextView style="@style/StatLabel" android:text="@string/lbl_blocked" />
+                    <TextView android:id="@+id/blockedCount" style="@style/StatValue" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Password -->
+            <com.google.android.material.card.MaterialCardView style="@style/StatCard">
+                <LinearLayout style="@style/StatInner">
+                    <TextView style="@style/StatLabel" android:text="@string/lbl_pw" />
+                    <TextView android:id="@+id/pwStatus" style="@style/StatValue" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Screen time -->
+            <com.google.android.material.card.MaterialCardView style="@style/StatCard">
+                <LinearLayout style="@style/StatInner">
+                    <TextView style="@style/StatLabel" android:text="@string/lbl_screentime" />
+                    <TextView android:id="@+id/screenTime" style="@style/StatValue" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Auto-start -->
+            <com.google.android.material.card.MaterialCardView style="@style/StatCard">
+                <LinearLayout style="@style/StatInner">
+                    <TextView style="@style/StatLabel" android:text="@string/lbl_autostart" />
+                    <TextView android:id="@+id/autoStart" style="@style/StatValue" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Custom -->
+            <com.google.android.material.card.MaterialCardView style="@style/StatCard">
+                <LinearLayout style="@style/StatInner">
+                    <TextView style="@style/StatLabel" android:text="@string/lbl_custom" />
+                    <TextView android:id="@+id/customCount" style="@style/StatValue" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </GridLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/enableBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/enable_protection"
+            android:layout_marginTop="18dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="14dp">
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/settingsBtn"
+                android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:text="@string/btn_settings" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/screenTimeBtn"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="@string/btn_screentime" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/muted"
+            android:textSize="11sp"
+            android:layout_marginTop="22dp"
+            android:gravity="center"
+            android:text="@string/footer_text" />
+
+        <TextView
+            android:id="@+id/appVersion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/muted"
+            android:textSize="11sp"
+            android:layout_marginTop="4dp" />
+    </LinearLayout>
+</ScrollView>

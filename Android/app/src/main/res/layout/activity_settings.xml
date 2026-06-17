@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:id="@+id/settingsContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/set_h1"
+            android:textColor="@color/text"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Appearance / language -->
+        <com.google.android.material.card.MaterialCardView style="@style/SectionCard">
+            <LinearLayout style="@style/SectionInner">
+                <TextView style="@style/SectionTitle" android:text="@string/theme_h2" />
+                <TextView style="@style/FieldLabel" android:text="@string/theme_label" />
+                <Spinner android:id="@+id/themeSpinner" android:layout_width="match_parent" android:layout_height="wrap_content" />
+                <TextView style="@style/FieldLabel" android:text="@string/lang_label" />
+                <Spinner android:id="@+id/langSpinner" android:layout_width="match_parent" android:layout_height="wrap_content" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Password -->
+        <com.google.android.material.card.MaterialCardView style="@style/SectionCard">
+            <LinearLayout style="@style/SectionInner">
+                <TextView style="@style/SectionTitle" android:text="@string/pw_h2" />
+                <TextView style="@style/FieldLabel" android:text="@string/pw_newlabel" />
+                <EditText android:id="@+id/newPw" style="@style/FieldInput"
+                    android:inputType="textPassword" android:hint="@string/pw_ph" android:autofillHints="" />
+                <TextView style="@style/FieldLabel" android:text="@string/pw_confirmlabel" />
+                <EditText android:id="@+id/confirmPw" style="@style/FieldInput"
+                    android:inputType="textPassword" android:hint="@string/pw_confirm_ph" android:autofillHints="" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:layout_marginTop="12dp">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/setPwBtn"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="@string/pw_setbtn" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/removePwBtn"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:textColor="@color/danger"
+                        android:text="@string/pw_delbtn" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Screen time -->
+        <com.google.android.material.card.MaterialCardView style="@style/SectionCard">
+            <LinearLayout style="@style/SectionInner">
+                <TextView style="@style/SectionTitle" android:text="@string/time_h2" />
+                <TextView style="@style/FieldLabel" android:text="@string/time_label" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                    <EditText android:id="@+id/screenLimit" style="@style/FieldInput"
+                        android:layout_width="0dp" android:layout_weight="1"
+                        android:inputType="number" android:autofillHints="" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/saveTimeBtn"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="@string/btn_save" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Auto-start -->
+        <com.google.android.material.card.MaterialCardView style="@style/SectionCard">
+            <LinearLayout style="@style/SectionInner">
+                <TextView style="@style/SectionTitle" android:text="@string/auto_h2" />
+                <androidx.appcompat.widget.SwitchCompat android:id="@+id/autoStartSwitch"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textColor="@color/text"
+                    android:text="@string/auto_label" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/saveAutoBtn"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/btn_save" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Custom blocklist -->
+        <com.google.android.material.card.MaterialCardView style="@style/SectionCard">
+            <LinearLayout style="@style/SectionInner">
+                <TextView style="@style/SectionTitle" android:text="@string/block_h2" />
+                <TextView style="@style/FieldLabel" android:text="@string/block_label" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                    <EditText android:id="@+id/newSite" style="@style/FieldInput"
+                        android:layout_width="0dp" android:layout_weight="1"
+                        android:inputType="textUri" android:hint="@string/block_ph" android:autofillHints="" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/addSiteBtn"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="@string/block_add" />
+                </LinearLayout>
+                <LinearLayout android:id="@+id/tagList"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:layout_marginTop="12dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/closeSettingsBtn"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/close_btn" />
+    </LinearLayout>
+</ScrollView>
