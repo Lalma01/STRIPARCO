@@ -42,6 +42,7 @@
       bl_shield: 'STRIPARCO · aktív védelem',
       // notification
       nt_title: 'TARTALOM BLOKKOLVA', nt_body: 'A böngésző tiltott tartalmat nyitott meg.', nt_reason: 'Indok: ',
+      u_h: 'ó', u_m: 'p', u_s: 'mp',
     },
     en: {
       app_name: 'STRIPARCO',
@@ -78,6 +79,7 @@
       bl_p: 'The requested website does not meet the STRIPARCO content policy, so access has been blocked.',
       bl_shield: 'STRIPARCO · active protection',
       nt_title: 'CONTENT BLOCKED', nt_body: 'The browser opened blocked content.', nt_reason: 'Reason: ',
+      u_h: 'h', u_m: 'm', u_s: 's',
     },
   };
 

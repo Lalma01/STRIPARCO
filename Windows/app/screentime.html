@@ -79,7 +79,7 @@ function fmt(sec) {
 function fmtMin(sec) {
   if (sec < 0) return window.t('val_unlimited');
   const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60);
-  return h>0 ? `${h}ó ${m}p` : `${m}p`;
+  return h>0 ? `${h}${window.t('u_h')} ${m}${window.t('u_m')}` : `${m}${window.t('u_m')}`;
 }
 
 function updateRing(remaining, used, limit) {

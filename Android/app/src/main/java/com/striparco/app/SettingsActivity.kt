@@ -1,5 +1,7 @@
 package com.striparco.app
 
+import android.app.admin.DevicePolicyManager
+import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
@@ -103,6 +105,7 @@ class SettingsActivity : AppCompatActivity() {
             promptPassword(R.string.pw_del_prompt) { pw ->
                 if (Config.removePassword(pw)) {
                     toast(R.string.pw_deleted); removeBtn.visibility = View.GONE
+                    DevicePolicy.relax(this)   // allow uninstall again
                 } else toast(R.string.lock_wrong)
             }
         }
@@ -113,6 +116,8 @@ class SettingsActivity : AppCompatActivity() {
         if (err == null) {
             toast(R.string.pw_set_ok); newPw.text.clear(); confirmPw.text.clear()
             removeBtn.visibility = View.VISIBLE
+            DevicePolicy.apply(this)   // block uninstall now that protection is on
+            promptEnableAdmin()
         } else toast(resources.getIdentifier(err, "string", packageName).let { if (it != 0) it else R.string.pw_err })
     }
 
@@ -171,6 +176,15 @@ class SettingsActivity : AppCompatActivity() {
             .setPositiveButton(android.R.string.ok) { _, _ -> onOk(input.text.toString()) }
             .setNegativeButton(R.string.st_lock_cancel, null)
             .show()
+    }
+
+    /** Offer to enable device admin (uninstall friction) when not already owner/admin. */
+    private fun promptEnableAdmin() {
+        if (DevicePolicy.isOwner(this) || DevicePolicy.isAdminActive(this)) return
+        val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
+            .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, DevicePolicy.admin(this))
+            .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, getString(R.string.admin_disable_warning))
+        try { startActivity(intent) } catch (_: Exception) {}
     }
 
     private fun toast(res: Int) = Toast.makeText(this, res, Toast.LENGTH_SHORT).show()

@@ -44,7 +44,8 @@ class FilterVpnService : VpnService() {
     }
 
     private fun refreshBlocklist() {
-        blocked = Blocklist.effectiveDomains(Config.customBlocked)
+        // Include DoH/DoT bootstrap hostnames so their A/AAAA lookups resolve to 0.0.0.0.
+        blocked = Blocklist.effectiveDomains(Config.customBlocked) + Blocklist.DOH_DOT_HOSTS
     }
 
     private fun buildNotification() =
@@ -68,6 +69,17 @@ class FilterVpnService : VpnService() {
             .addDnsServer(virtualDns)
             .addRoute(virtualDns, 32)
             .setMtu(1500)
+
+        // Black-hole well-known DoH/DoT resolver IPs: route them into the tunnel where any
+        // non-plain-DNS packet (TCP 443/853, QUIC) is dropped by the read loop, so hard-coded
+        // encrypted-DNS clients fail and fall back to plain DNS — which we filter.
+        for (ip in Blocklist.DOH_DOT_IPS) try { builder.addRoute(ip, 32) } catch (_: Exception) {}
+        // IPv6: add a ULA address so v6 routes are valid, then black-hole v6 resolver IPs.
+        try {
+            builder.addAddress("fd00:5717:5749::1", 64)
+            for (ip in Blocklist.DOH_DOT_IPS6) try { builder.addRoute(ip, 128) } catch (_: Exception) {}
+        } catch (_: Exception) {}
+
         // Don't filter ourselves.
         try { builder.addDisallowedApplication(packageName) } catch (_: Exception) {}
 

@@ -8,6 +8,7 @@ import android.content.Intent
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         Config.init(context)
+        DevicePolicy.apply(context)
         if (!Config.autoStart) return
         ServiceController.startAll(context)
     }

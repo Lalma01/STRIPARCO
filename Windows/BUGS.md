@@ -2,6 +2,12 @@
 
 Severity: 🔴 high · 🟠 medium · 🟡 low
 
+> **Status: all items below are FIXED** (commit history). The password is now enforced in the
+> main process for `screen_time_limit`, `auto_start` and `custom_blocked_sites`; **theme and
+> language remain changeable without a password** by design. Time units are localised, the
+> clipboard is preserved on redirect, warnings use one-shot flags, and the watchdog/notification
+> timer/version-newline issues are resolved.
+
 ## 🔴 Settings IPC bypasses the password for everything except the time limit
 `save-config` (main.js) only verifies the password when `screen_time_limit` is present.
 `custom_blocked_sites`, `auto_start`, `theme` and `lang` can be changed with **no** password,

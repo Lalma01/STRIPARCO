@@ -85,9 +85,10 @@ const MSG = {
     notif_limit: 'A napi képernyőidő-korlát elérve.',
     exit_prompt: 'Jelszó szükséges a kilépéshez', exit_ph: 'Jelszó',
     exit_ok: 'OK', exit_cancel: 'Mégse', exit_wrong: 'Hibás jelszó',
-    err_pw_time: 'Jelszó szükséges a képernyőidő-korlát módosításához',
+    err_pw_time: 'Jelszó szükséges a módosításhoz',
     err_pw_old: 'Hibás régi jelszó', err_pw_min: 'Min. 4 karakter szükséges',
     err_pw_wrong: 'Hibás jelszó',
+    u_h: 'ó', u_m: 'p', u_s: 'mp',
   },
   en: {
     tray_open: 'Open STRIPARCO', tray_screentime: 'Screen Time',
@@ -98,22 +99,24 @@ const MSG = {
     notif_limit: 'Daily screen time limit reached.',
     exit_prompt: 'Password required to exit', exit_ph: 'Password',
     exit_ok: 'OK', exit_cancel: 'Cancel', exit_wrong: 'Wrong password',
-    err_pw_time: 'Password required to change the screen time limit',
+    err_pw_time: 'Password required to make this change',
     err_pw_old: 'Wrong current password', err_pw_min: 'Minimum 4 characters required',
     err_pw_wrong: 'Wrong password',
+    u_h: 'h', u_m: 'm', u_s: 's',
   },
 };
 const tr = key => (MSG[config.lang] || MSG.hu)[key] || (MSG.hu[key] || key);
 
 // ── State ──────────────────────────────────────────────────────────────────
 let tray = null, mainWindow = null, settingsWindow = null;
-let notifWindow = null, screenTimeWindow = null;
+let notifWindow = null, screenTimeWindow = null, notifCloseTimer = null;
 let coverWindows = [];
 let config = {};
 let screenTimeSecondsUsed = 0;
 let limitReached = false;
 let screenTimePaused = false;
 let lastNotifKey = '', lastNotifTime = 0;
+let warned15 = false, warned5 = false, warned1 = false;
 let lastCloseOthers = 0;
 let watchdogProcess = null;
 let lockoutEnforcer = null;
@@ -126,7 +129,9 @@ const fmtTime    = sec => {
   if (sec < 0) return '∞';
   sec = Math.floor(sec);
   const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
-  return h > 0 ? `${h}ó ${m}p` : `${m}p ${String(s).padStart(2,'0')}mp`;
+  return h > 0
+    ? `${h}${tr('u_h')} ${m}${tr('u_m')}`
+    : `${m}${tr('u_m')} ${String(s).padStart(2,'0')}${tr('u_s')}`;
 };
 
 // ── Config ─────────────────────────────────────────────────────────────────
@@ -350,6 +355,8 @@ function redirectBrowser(pid) {
   const safeUrl = blockedUrl.replace(/'/g, "''");
   const ps = `
     Add-Type -AssemblyName Microsoft.VisualBasic
+    $prev = $null
+    try { $prev = Get-Clipboard -Raw -ErrorAction SilentlyContinue } catch {}
     try { [Microsoft.VisualBasic.Interaction]::AppActivate(${pid}) } catch {}
     Start-Sleep -Milliseconds 120
     Set-Clipboard -Value '${safeUrl}'
@@ -360,16 +367,27 @@ function redirectBrowser(pid) {
     $wshell.SendKeys('^v')
     Start-Sleep -Milliseconds 40
     $wshell.SendKeys('{ENTER}')
+    Start-Sleep -Milliseconds 300
+    try { if ($null -ne $prev) { Set-Clipboard -Value $prev } else { $null | Set-Clipboard } } catch {}
   `;
   exec(`powershell -NoProfile -NonInteractive -Command "${ps.replace(/\n/g, '; ')}"`);
 }
 
 // ── Notification window ────────────────────────────────────────────────────
 function showNotifWindow(title, keyword) {
+  // Single auto-close timer, re-armed on every show so repeated alerts don't stack timers.
+  const armClose = () => {
+    if (notifCloseTimer) clearTimeout(notifCloseTimer);
+    notifCloseTimer = setTimeout(() => {
+      if (notifWindow && !notifWindow.isDestroyed()) notifWindow.close();
+    }, 8000);
+  };
+
   if (notifWindow && !notifWindow.isDestroyed()) {
     notifWindow.webContents.send('update-notification', { title, keyword });
     notifWindow.showInactive();
     notifWindow.setAlwaysOnTop(true, 'screen-saver');
+    armClose();
     return;
   }
   const { width } = screen.getPrimaryDisplay().workAreaSize;
@@ -385,8 +403,11 @@ function showNotifWindow(title, keyword) {
     notifWindow.webContents.send('update-notification', { title, keyword });
     notifWindow.showInactive();
   });
-  notifWindow.on('closed', () => { notifWindow = null; });
-  setTimeout(() => { if (notifWindow && !notifWindow.isDestroyed()) notifWindow.close(); }, 8000);
+  notifWindow.on('closed', () => {
+    notifWindow = null;
+    if (notifCloseTimer) { clearTimeout(notifCloseTimer); notifCloseTimer = null; }
+  });
+  armClose();
 }
 
 // ── Screen time ────────────────────────────────────────────────────────────
@@ -434,6 +455,7 @@ function startTimers() {
   setInterval(() => {
     if (config.screen_time_date !== todayDate()) {
       config.screen_time_date = todayDate(); screenTimeSecondsUsed = 0; limitReached = false;
+      warned15 = warned5 = warned1 = false;
     }
 
     if (!isCountingPaused()) {
@@ -444,9 +466,16 @@ function startTimers() {
     const rem = getRemaining();
     updateTray();
 
-    if (rem === 15 * 60 || (rem < 15 * 60 && rem > 15 * 60 - 3 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif(tr('notif_15'));
-    if (rem === 5 * 60 || (rem < 5 * 60 && rem > 5 * 60 - 3 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif(tr('notif_5'));
-    if (rem === 60 || (rem < 60 && rem > 57 && screenTimeSecondsUsed % 10 === 1)) showTimeNotif(tr('notif_1'));
+    // One-shot warnings at 15 / 5 / 1 minute(s) left. Flags reset when time goes back above
+    // a threshold (e.g. after add-time) or on a new day, so they fire reliably each descent.
+    if (rem < 0) {
+      warned15 = warned5 = warned1 = false;
+    } else {
+      if (rem > 15 * 60) { warned15 = warned5 = warned1 = false; }
+      if (rem > 0 && rem <= 15 * 60 && !warned15) { warned15 = true; showTimeNotif(tr('notif_15')); }
+      if (rem > 0 && rem <= 5 * 60  && !warned5)  { warned5  = true; showTimeNotif(tr('notif_5'));  }
+      if (rem > 0 && rem <= 60      && !warned1)  { warned1  = true; showTimeNotif(tr('notif_1'));  }
+    }
 
     if (rem === 0 && !limitReached) { limitReached = true; onLimitReached(); }
     // Re-enforce browser closing periodically (not every second) to keep CPU usage low
@@ -680,10 +709,15 @@ ipcMain.handle('get-version', () => {
   return pkg.version;
 });
 
+// Fields that require the password to change while protection is on.
+// Theme and language are intentionally NOT protected (cosmetic, safe to change freely).
+const PROTECTED_KEYS = ['screen_time_limit', 'auto_start', 'custom_blocked_sites'];
+
 ipcMain.handle('save-config', (_, incoming) => {
   try {
-    // Password-protected settings require password to change screen_time_limit
-    if (config.password_protected && 'screen_time_limit' in incoming) {
+    // Enforce the password in the main process for any protected field — the renderer
+    // lock overlay alone is not a security boundary.
+    if (config.password_protected && PROTECTED_KEYS.some(k => k in incoming)) {
       if (!incoming._password || hashPw(incoming._password) !== config.password_hash) {
         return { success:false, error:tr('err_pw_time') };
       }
@@ -728,6 +762,7 @@ ipcMain.handle('set-password', (_, data) => {
 });
 
 ipcMain.handle('remove-password', (_, pw) => {
+  if (!config.password_protected) return { success:true };
   if (hashPw(pw) !== config.password_hash) return { success:false, error:tr('err_pw_wrong') };
   config.password_protected = false;
   config.password_hash = '';
@@ -758,6 +793,10 @@ ipcMain.handle('add-time', (_, data) => {
   const safeMins = Math.min(120, Math.max(0, parseInt(mins) || 0));
   screenTimeSecondsUsed = Math.max(0, screenTimeSecondsUsed - safeMins * 60);
   limitReached = false;
+  // Re-arm the warnings so they fire again as the new budget runs down.
+  if (getRemaining() > 15 * 60) { warned15 = warned5 = warned1 = false; }
+  else if (getRemaining() > 5 * 60) { warned5 = warned1 = false; }
+  else if (getRemaining() > 60) { warned1 = false; }
   saveConfig();
   stopLockoutEnforcer();
   if (screenTimeWindow && !screenTimeWindow.isDestroyed()) {
@@ -815,6 +854,7 @@ else {
   // Spawn the watchdog if one isn't running; respawn it automatically if it dies.
   function ensureWatchdog() {
     if (app.isQuitting) return;
+    if (watchdogProcess) return; // never run more than one watchdog at a time
     const watchdogPath = path.join(__dirname, 'watchdog.js');
     watchdogProcess = spawn(process.execPath, [watchdogPath, process.execPath, '--hidden', PID_FILE], {
       detached: true,

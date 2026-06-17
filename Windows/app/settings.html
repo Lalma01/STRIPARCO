@@ -92,6 +92,13 @@
 <script>
 let cfg = {};
 let unlocked = false;
+// Password entered when unlocking; reused for protected saves so the user isn't re-prompted.
+let sessionPw = null;
+// Attach the session password to a payload when protection is on.
+function withPw(payload) {
+  if (cfg.password_protected && sessionPw) payload._password = sessionPw;
+  return payload;
+}
 
 async function init() {
   cfg = await window.api.getConfig();
@@ -156,7 +163,7 @@ function showMsg(id, text, isErr) {
 document.getElementById('unlockBtn').addEventListener('click', async () => {
   const pw = document.getElementById('unlockPw').value;
   const r = await window.api.checkPassword(pw);
-  if (r.ok) { unlock(); }
+  if (r.ok) { sessionPw = pw; unlock(); }
   else { document.getElementById('lockErr').textContent = window.t('lock_wrong'); }
 });
 document.getElementById('unlockPw').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('unlockBtn').click(); });
@@ -175,6 +182,7 @@ document.getElementById('setPwBtn').addEventListener('click', async () => {
   const r = await window.api.setPassword(data);
   if (r.success) {
     cfg.password_protected = true;
+    sessionPw = p1;
     showMsg('pwMsg',window.t('pw_set_ok'),false);
     document.getElementById('removePwBtn').style.display = 'inline-block';
   } else {
@@ -186,26 +194,20 @@ document.getElementById('removePwBtn').addEventListener('click', async () => {
   const pw = prompt(window.t('pw_del_prompt'));
   if (!pw) return;
   const r = await window.api.removePassword(pw);
-  if (r.success) { cfg.password_protected = false; showMsg('pwMsg',window.t('pw_deleted'),false); document.getElementById('removePwBtn').style.display='none'; }
+  if (r.success) { cfg.password_protected = false; sessionPw = null; showMsg('pwMsg',window.t('pw_deleted'),false); document.getElementById('removePwBtn').style.display='none'; }
   else { showMsg('pwMsg',window.t('lock_wrong'),true); }
 });
 
 document.getElementById('saveTimeBtn').addEventListener('click', async () => {
   const v = parseInt(document.getElementById('screenLimit').value)||0;
-  let payload = { screen_time_limit: v };
-  if (cfg.password_protected) {
-    const pw = prompt(window.t('time_prompt_pw'));
-    if (!pw) return;
-    payload._password = pw;
-  }
-  const r = await window.api.saveConfig(payload);
+  const r = await window.api.saveConfig(withPw({ screen_time_limit: v }));
   if (r.success) cfg.screen_time_limit = v;
   showMsg('timeMsg', r.success ? window.t('msg_saved') : (window.t('msg_err')+r.error), !r.success);
 });
 
 document.getElementById('saveAutoBtn').addEventListener('click', async () => {
   const v = document.getElementById('autoStart').checked;
-  const r = await window.api.saveConfig({ auto_start: v });
+  const r = await window.api.saveConfig(withPw({ auto_start: v }));
   showMsg('autoMsg', r.success ? window.t('msg_saved') : (window.t('msg_err')+r.error), !r.success);
 });
 
@@ -215,14 +217,16 @@ document.getElementById('addSiteBtn').addEventListener('click', async () => {
   if (!cfg.custom_blocked_sites) cfg.custom_blocked_sites = [];
   if (cfg.custom_blocked_sites.includes(val)) { showMsg('siteMsg',window.t('block_exists'),true); return; }
   cfg.custom_blocked_sites.push(val);
-  const r = await window.api.saveConfig({ custom_blocked_sites: cfg.custom_blocked_sites });
+  const r = await window.api.saveConfig(withPw({ custom_blocked_sites: cfg.custom_blocked_sites }));
   if (r.success) { document.getElementById('newSite').value=''; renderTags(); showMsg('siteMsg',window.t('block_added'),false); }
-  else { showMsg('siteMsg',window.t('msg_err')+r.error,true); }
+  else { cfg.custom_blocked_sites.pop(); showMsg('siteMsg',window.t('msg_err')+(r.error||''),true); }
 });
 
 async function removeSite(site) {
+  const prev = cfg.custom_blocked_sites;
   cfg.custom_blocked_sites = cfg.custom_blocked_sites.filter(s=>s!==site);
-  await window.api.saveConfig({ custom_blocked_sites: cfg.custom_blocked_sites });
+  const r = await window.api.saveConfig(withPw({ custom_blocked_sites: cfg.custom_blocked_sites }));
+  if (!r.success) { cfg.custom_blocked_sites = prev; showMsg('siteMsg',window.t('msg_err')+(r.error||''),true); }
   renderTags();
 }
 

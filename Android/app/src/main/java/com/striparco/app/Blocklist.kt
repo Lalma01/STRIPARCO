@@ -63,6 +63,45 @@ object Blocklist {
         "grok", "claude", "perplexity", "gemini", "chatgpt", "copilot", "openai", "pi.ai", "you.com"
     )
 
+    // ── DoH / DoT hardening ────────────────────────────────────────────────
+    // Hostnames of well-known DNS-over-HTTPS / DNS-over-TLS providers. Resolving these
+    // (the "bootstrap" lookup) is blocked so apps can't discover an encrypted resolver.
+    val DOH_DOT_HOSTS = listOf(
+        "dns.google", "dns.google.com", "cloudflare-dns.com", "mozilla.cloudflare-dns.com",
+        "one.one.one.one", "dns.quad9.net", "dns9.quad9.net", "dns.adguard.com",
+        "dns.adguard-dns.com", "dns-family.adguard.com", "doh.opendns.com",
+        "doh.familyshield.opendns.com", "dns.nextdns.io", "doh.cleanbrowsing.org",
+        "doh.mullvad.net", "dns.controld.com", "freedns.controld.com", "doh.dns.sb",
+        "dot.dns.sb", "dns.alidns.com", "doh.pub", "dns.twnic.tw", "doh.libredns.gr",
+        "anycast.censurfridns.dk", "dnsforge.de", "dns.digitale-gesellschaft.ch",
+        "chromium-dns.com", "doh.appliedprivacy.net"
+    )
+
+    // IPv4 anycast addresses of the major encrypted resolvers. Connections to these are
+    // black-holed by the VPN so hard-coded DoH/DoT clients fail and fall back to plain DNS.
+    val DOH_DOT_IPS = listOf(
+        "1.1.1.1", "1.0.0.1", "1.1.1.2", "1.0.0.2", "1.1.1.3", "1.0.0.3",
+        "8.8.8.8", "8.8.4.4",
+        "9.9.9.9", "149.112.112.112", "9.9.9.11", "149.112.112.11", "9.9.9.10", "149.112.112.10",
+        "94.140.14.14", "94.140.15.15", "94.140.14.15", "94.140.15.16",
+        "208.67.222.222", "208.67.220.220", "208.67.222.123", "208.67.220.123",
+        "185.228.168.9", "185.228.169.9", "185.228.168.168", "185.228.169.168",
+        "76.76.2.0", "76.76.10.0", "76.76.2.2", "76.76.10.2",
+        "194.242.2.2", "194.242.2.3", "194.242.2.4",
+        "45.90.28.0", "45.90.30.0",
+        "146.112.41.2"
+    )
+
+    // IPv6 addresses of the same providers.
+    val DOH_DOT_IPS6 = listOf(
+        "2606:4700:4700::1111", "2606:4700:4700::1001",
+        "2606:4700:4700::1112", "2606:4700:4700::1002",
+        "2001:4860:4860::8888", "2001:4860:4860::8844",
+        "2620:fe::fe", "2620:fe::9",
+        "2a10:50c0::ad1:ff", "2a10:50c0::ad2:ff",
+        "2620:119:35::35", "2620:119:53::53"
+    )
+
     /** Returns true if [domain] (or a parent of it) is on the allow list. */
     fun isAllowed(domain: String): Boolean {
         val d = domain.lowercase().removePrefix("www.")

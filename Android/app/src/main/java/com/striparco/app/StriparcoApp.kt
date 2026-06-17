@@ -16,6 +16,7 @@ class StriparcoApp : Application() {
         Config.init(this)
         applyTheme(Config.theme)
         createChannels()
+        DevicePolicy.apply(this)
     }
 
     /** Force the user's chosen locale regardless of the system one (bilingual HU/EN). */

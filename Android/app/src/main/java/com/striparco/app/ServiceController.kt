@@ -26,8 +26,9 @@ object ServiceController {
 
     /** Start everything that can run without an interactive consent prompt. */
     fun startAll(ctx: Context) {
+        DevicePolicy.apply(ctx)
         startScreenTime(ctx)
-        // VPN only starts if consent was already granted (prepare() returns null).
-        if (VpnService.prepare(ctx) == null) startVpn(ctx)
+        // VPN starts if consent was already granted, or if we're device owner (always-on/no prompt).
+        if (VpnService.prepare(ctx) == null || DevicePolicy.isOwner(ctx)) startVpn(ctx)
     }
 }

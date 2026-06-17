@@ -16,7 +16,7 @@ features of the Windows build, re-implemented with native Android mechanisms.
 | Password protection (SHA-256 `pw+cb_v1`) | identical hashing in `Config` |
 | Add time (+15 min, max 120) | `ScreenTimeActivity` / `LockoutActivity` |
 | Auto-start (scheduled task / Run key) | `BootReceiver` on `BOOT_COMPLETED` |
-| Anti-uninstall (registry, watchdog) | Device Admin (`AdminReceiver`) + sticky FGS |
+| Anti-uninstall (registry, watchdog) | Device **owner**/admin (`AdminReceiver` + `DevicePolicy`) + sticky FGS |
 | `nativeTheme` light/dark | AppCompat DayNight (auto + manual) |
 | Hungarian / English | `values/` + `values-hu/` string resources |
 | Custom blocklist | `Config.customBlocked`, applied to DNS + titles |
@@ -28,13 +28,31 @@ Requires Android SDK (platform 34, build-tools 34) and JDK 17.
 
 ```bash
 cd Android
-# generates the pinned Gradle 8.7 wrapper (first time only)
-gradle wrapper --gradle-version 8.7
-./gradlew assembleRelease      # unsigned APK in app/build/outputs/apk/release
-./gradlew assembleDebug        # debug APK
+./build.sh        # or build.bat on Windows → produces release/STRIPARCO.apk (signed)
 ```
 
-Or open the `Android/` folder in Android Studio.
+Manual:
+```bash
+gradle wrapper --gradle-version 8.7   # first time only
+./gradlew assembleRelease             # signed APK, app/build/outputs/apk/release
+./gradlew assembleDebug               # debug APK
+```
+
+A prebuilt **signed release APK is committed at [`release/STRIPARCO.apk`](release/STRIPARCO.apk)**
+(~1.6 MB, self-signed key in `striparco-release.keystore`). Or open `Android/` in Android Studio.
+
+## Device owner (strong anti-tamper, optional)
+
+On a fresh device with no accounts, provision STRIPARCO as **device owner**:
+
+```bash
+adb shell dpm set-device-owner com.striparco.app/.AdminReceiver
+```
+
+As device owner the app blocks its own uninstall while a password is set, forces the filter
+VPN always-on, pins Private DNS, and stops the user from reconfiguring VPNs. Without device
+owner, it falls back to a normal **device admin** (offered when you set a password), which still
+requires deactivating the admin before the app can be uninstalled.
 
 ## Required permissions (granted on first run via the **Enable protection** button)
 
@@ -43,10 +61,24 @@ Or open the `Android/` folder in Android Studio.
 3. **Display over other apps** — for the lockout and blocked screens.
 4. **Notifications** (Android 13+) and, optionally, **Device admin** for anti-uninstall.
 
+## DoH / DoT (encrypted DNS) handling
+
+Encrypted DNS is actively countered, not just plain DNS:
+
+1. **Bootstrap hostnames blocked** — `dns.google`, `cloudflare-dns.com`, `dns.quad9.net`,
+   `dns.adguard.com`, NextDNS, Mullvad, ControlD, etc. resolve to `0.0.0.0`.
+2. **Resolver IPs black-holed** — the VPN routes ~40 known DoH/DoT anycast IPs (IPv4 + IPv6)
+   into the tunnel, where their TCP 443 / 853 / QUIC traffic is dropped, so hard-coded
+   encrypted-DNS clients fail and fall back to plain DNS (which is filtered).
+3. **Private DNS pinned** (device owner only) — system DNS-over-TLS is forced to opportunistic
+   and the user can't point it at a custom DoH provider.
+
+See `Blocklist.DOH_DOT_HOSTS / DOH_DOT_IPS / DOH_DOT_IPS6`.
+
 ## Notes / limitations
 
-- The DNS filter blocks plain DNS lookups. Apps that use DoH/DoT with hard-coded
-  servers can bypass it — the same class of limitation as a desktop `hosts` file.
-- Browser monitoring covers the major Android browsers listed in
-  `accessibility_service_config.xml`; add more package names there if needed.
+- Browser monitoring covers ~70 Android browsers (`Browsers.kt` /
+  `accessibility_service_config.xml`); add more package names there if needed.
+- A determined user could still find an obscure resolver IP not on the black-hole list; device
+  owner mode (Private DNS pinning) closes that gap.
 - Everything runs on-device; no data leaves the phone.

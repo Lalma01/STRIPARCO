@@ -14,14 +14,7 @@ import android.view.accessibility.AccessibilityNodeInfo
  */
 class MonitorAccessibilityService : AccessibilityService() {
 
-    private val browsers = setOf(
-        "com.android.chrome", "org.mozilla.firefox", "com.microsoft.emmx",
-        "com.opera.browser", "com.opera.gx", "com.brave.browser",
-        "com.vivaldi.browser", "com.sec.android.app.sbrowser",
-        "com.duckduckgo.mobile.android", "com.kiwibrowser.browser",
-        "com.UCMobile.intl", "mark.via.gp", "org.torproject.torbrowser",
-        "com.yandex.browser", "com.ecosia.android", "acr.browser.lightning"
-    )
+    private val browsers = Browsers.PACKAGES
 
     private val urlBarIds = listOf(
         "com.android.chrome:id/url_bar",

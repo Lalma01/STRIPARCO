@@ -5,11 +5,22 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * Device-admin anti-tamper. While the password is set, enabling this admin blocks uninstalling
- * the app from Settings — the Android counterpart of preventUninstallation() on Windows.
- * The user can still disable it from Security settings if they know the password flow.
+ * Device-admin / device-owner receiver. Acts as the admin component for anti-tamper:
+ * see [DevicePolicy]. Provision as device owner with:
+ *   adb shell dpm set-device-owner com.striparco.app/.AdminReceiver
  */
 class AdminReceiver : DeviceAdminReceiver() {
+
+    override fun onEnabled(context: Context, intent: Intent) {
+        Config.init(context)
+        DevicePolicy.apply(context)
+    }
+
+    override fun onProfileProvisioningComplete(context: Context, intent: Intent) {
+        Config.init(context)
+        DevicePolicy.apply(context)
+    }
+
     override fun onDisableRequested(context: Context, intent: Intent): CharSequence {
         return context.getString(R.string.admin_disable_warning)
     }
