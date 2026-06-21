@@ -501,15 +501,9 @@ function startLockoutEnforcer() {
       openScreenTimeWindow();
       return;
     }
-    try {
-      screenTimeWindow.setKiosk(true);
-      screenTimeWindow.setAlwaysOnTop(true, 'screen-saver');
-      if (!screenTimeWindow.isVisible()) screenTimeWindow.show();
-      if (!screenTimeWindow.isFocused()) screenTimeWindow.focus();
-      for (const w of coverWindows) {
-        if (w && !w.isDestroyed()) { w.setAlwaysOnTop(true, 'screen-saver'); if (!w.isVisible()) w.show(); }
-      }
-    } catch (e) {}
+    // Re-assert the full-screen lockdown every tick so the machine cannot be used
+    // (covers Alt+Tab away, focus theft, a moved/resized window, etc.).
+    applyLockdown();
   }, 1000);
 }
 
@@ -518,12 +512,18 @@ function stopLockoutEnforcer() {
   destroyCoverWindows();
 }
 
-// Cover every secondary display with a blank always-on-top window so nothing else is reachable.
+// Cover every secondary display with a blank always-on-top window so nothing else is
+// reachable. Idempotent: re-asserts existing covers instead of recreating them (the
+// lockout enforcer calls this every second).
 function createCoverWindows() {
-  destroyCoverWindows();
   const primary = screen.getPrimaryDisplay();
-  for (const d of screen.getAllDisplays()) {
-    if (d.id === primary.id) continue;
+  const secondary = screen.getAllDisplays().filter(d => d.id !== primary.id);
+  if (coverWindows.length === secondary.length && coverWindows.every(w => w && !w.isDestroyed())) {
+    for (const w of coverWindows) { try { w.setAlwaysOnTop(true, 'screen-saver'); w.moveTop(); if (!w.isVisible()) w.show(); } catch (e) {} }
+    return;
+  }
+  destroyCoverWindows();
+  for (const d of secondary) {
     const w = new BrowserWindow({
       x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height,
       frame:false, fullscreen:true, skipTaskbar:true, alwaysOnTop:true, focusable:false,
@@ -574,43 +574,81 @@ function openSettingsWindow() {
   settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
+// Force the lock window to fill the whole primary display and sit above everything.
+// Done with an explicit bounds + borderless full-screen overlay rather than `kiosk`,
+// which did not reliably resize the window on newer Electron (it showed up tiny).
+function applyLockdown() {
+  if (!screenTimeWindow || screenTimeWindow.isDestroyed()) return;
+  const w = screenTimeWindow;
+  const b = screen.getPrimaryDisplay().bounds;
+  try {
+    // Idempotent: only toggle state that is not already correct, so re-asserting it
+    // every second neither flickers nor fights the user's own typing focus.
+    if (!w.isResizable())   w.setResizable(true);  // required for programmatic sizing
+    if (w.isClosable())     w.setClosable(false);
+    if (w.isMovable())      w.setMovable(false);
+    if (w.isMinimizable())  w.setMinimizable(false);
+    if (!w.isAlwaysOnTop()) w.setAlwaysOnTop(true, 'screen-saver');
+    w.setSkipTaskbar(true);
+    // Borderless full-screen overlay (more reliable than kiosk for sizing). setBounds
+    // first puts the window on the primary display so full-screen covers that screen.
+    if (!w.isFullScreen()) {
+      w.setBounds(b);
+      w.setFullScreen(true);
+    } else {
+      const cur = w.getBounds();
+      if (cur.width !== b.width || cur.height !== b.height) { w.setFullScreen(false); w.setBounds(b); w.setFullScreen(true); }
+    }
+    if (!w.isVisible()) w.show();
+    if (!w.isFocused()) { w.moveTop(); w.focus(); }
+  } catch (e) {}
+  createCoverWindows();
+}
+
+function releaseLockdown() {
+  if (!screenTimeWindow || screenTimeWindow.isDestroyed()) return;
+  const w = screenTimeWindow;
+  try {
+    if (w.isFullScreen()) w.setFullScreen(false);
+    w.setAlwaysOnTop(false);
+    w.setClosable(true);
+    w.setMovable(true);
+    w.setMinimizable(true);
+    w.setSkipTaskbar(false);
+    w.setSize(440, 620);
+    w.setResizable(false);
+    w.center();
+  } catch (e) {}
+  destroyCoverWindows();
+}
+
 function openScreenTimeWindow() {
   const isTimeUp = getRemaining() === 0;
 
   if (screenTimeWindow && !screenTimeWindow.isDestroyed()) {
-    if (isTimeUp) {
-      screenTimeWindow.setKiosk(true);
-      screenTimeWindow.setAlwaysOnTop(true, 'screen-saver');
-      createCoverWindows();
-    } else {
-      screenTimeWindow.setKiosk(false);
-      screenTimeWindow.setAlwaysOnTop(false);
-      destroyCoverWindows();
-    }
-    screenTimeWindow.show();
-    screenTimeWindow.focus();
+    if (isTimeUp) applyLockdown(); else { releaseLockdown(); screenTimeWindow.show(); screenTimeWindow.focus(); }
     return;
   }
 
   screenTimeWindow = new BrowserWindow({
     width: 440, height: 620,
-    resizable: false,
-    kiosk: isTimeUp,
-    alwaysOnTop: isTimeUp,
+    // Locked window must be resizable so setBounds/setFullScreen can actually grow it
+    // (a non-resizable window ignores programmatic sizing — that was the "tiny" bug).
+    resizable: isTimeUp,
     frame: !isTimeUp,
-    skipTaskbar: isTimeUp,
     closable: !isTimeUp,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b1d22' : '#f4f5f7',
     webPreferences:{ nodeIntegration:false, contextIsolation:true, preload:PRELOAD }
   });
 
-  if (isTimeUp) {
-    screenTimeWindow.setAlwaysOnTop(true, 'screen-saver');
-    createCoverWindows();
-  }
-
   screenTimeWindow.loadFile(path.join(__dirname, 'screentime.html'));
   screenTimeWindow.setMenu(null);
+
+  // Apply the full lockdown once the page is ready so the bounds/full-screen stick.
+  if (isTimeUp) {
+    screenTimeWindow.once('ready-to-show', applyLockdown);
+    applyLockdown();
+  }
 
   screenTimeWindow.on('close', (e) => {
     if (getRemaining() === 0 && !app.isQuitting) {
@@ -774,10 +812,7 @@ ipcMain.handle('add-time', (_, data) => {
   else if (getRemaining() > 60) { warned1 = false; }
   saveConfig();
   stopLockoutEnforcer();
-  if (screenTimeWindow && !screenTimeWindow.isDestroyed()) {
-    screenTimeWindow.setKiosk(false);
-    screenTimeWindow.setAlwaysOnTop(false);
-  }
+  releaseLockdown();
   return { success:true, remaining: getRemaining() };
 });
 
