@@ -33,17 +33,35 @@ const runQ = cmd => { try { return execSync(cmd, { windowsHide: true, stdio: ['i
 const installDir = () => path.dirname(process.execPath);
 
 // ── 1) Install-directory ACL lock ──────────────────────────────────────────
-// Deny DELETE + DELETE_CHILD to Everyone (inherited to all files/subfolders) so
-// the folder and its contents cannot be removed from Explorer / Settings.
-// An admin can still take ownership and override — that is the inherent limit
-// without a kernel component — but casual removal is blocked.
-function lockInstallDir() {
+// Deny, to Everyone and inherited to every file/subfolder:
+//   DE   delete            DC   delete child
+//   WDAC write-DAC         WO   write-owner
+// Denying WDAC/WO is what actually stops `rm -rf` / Explorer delete: with only
+// DE+DC a tool (or MSYS `rm -f`, which chmods first) could rewrite the ACL and
+// strip the deny. We also hand ownership to SYSTEM so an *administrator* (who is
+// otherwise the implicit owner of Program Files and could rewrite the DACL) no
+// longer can. SYSTEM, being the owner, can still re-apply this every cycle.
+// A determined admin can still `takeown` first — the inherent user-mode limit —
+// but a plain delete (incl. Git Bash) is blocked.
+const DENY_RIGHTS = '(OI)(CI)(DE,DC,WDAC,WO)';
+const SID_SYSTEM  = '*S-1-5-18';      // NT AUTHORITY\SYSTEM
+const SID_ADMINS  = '*S-1-5-32-544';  // BUILTIN\Administrators
+// SIDs (not names) so nothing breaks on a non-English Windows.
+
+async function lockInstallDir() {
   const dir = installDir();
-  return run(`icacls "${dir}" /deny "${EVERYONE_SID}:(OI)(CI)(DE,DC)" /T /C`);
+  await run(`icacls "${dir}" /deny "${EVERYONE_SID}:${DENY_RIGHTS}" /T /C`);
+  // Best-effort: the SYSTEM service always succeeds; the elevated GUI may not.
+  await run(`icacls "${dir}" /setowner "${SID_SYSTEM}" /T /C`);
 }
-function unlockInstallDir() {
+async function unlockInstallDir() {
   const dir = installDir();
-  return run(`icacls "${dir}" /remove:d "${EVERYONE_SID}" /T /C`);
+  // Seize ownership back to Administrators (the elevated GUI has SeTakeOwnership)
+  // so the deny can be stripped. icacls /setowner is used instead of `takeown`
+  // because takeown's /d confirmation letter is localized (e.g. "I" on Hungarian
+  // Windows) and would otherwise hang/fail. Then remove the deny → uninstallable.
+  await run(`icacls "${dir}" /setowner "${SID_ADMINS}" /T /C`);
+  await run(`icacls "${dir}" /remove:d "${EVERYONE_SID}" /T /C`);
 }
 
 // ── 2) Uninstall registry entry ─────────────────────────────────────────────

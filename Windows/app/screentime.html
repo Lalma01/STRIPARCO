@@ -28,7 +28,10 @@
     body.locked { padding: 40px; }
     body.locked h1 { font-size: 2.6rem; margin-bottom: 10px; }
     body.locked .subtitle { font-size: 1.1rem; }
-    body.locked .ring-wrap { width: 240px; height: 240px; margin-bottom: 30px; }
+    body.locked .ring-wrap { width: 240px; height: 240px; margin: 0 auto 30px; }
+    /* Scale the SVG to fill the enlarged wrap so the ring and the centered
+       counter text stay aligned (the viewBox keeps it crisp). */
+    body.locked .ring-wrap svg { width: 240px; height: 240px; }
     body.locked .ring-time { font-size: 2.1rem; }
     body.locked .ring-label { font-size: 1rem; }
     body.locked .info-card .val { font-size: 1.5rem; }
