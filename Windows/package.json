@@ -1,6 +1,6 @@
 {
   "name": "striparco",
-  "version": "1.12.18",
+  "version": "1.12.19",
   "description": "STRIPARCO – Windows NSFW / NSFW-AI content filter & screen time guard",
   "author": "STRIPARCO",
   "main": "app/main.js",
