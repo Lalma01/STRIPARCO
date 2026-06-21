@@ -161,10 +161,8 @@ function loadConfig() {
     config.screen_time_date = todayDate();
   }
   screenTimeSecondsUsed = config.screen_time_used || 0;
-
-  if (!config.password_protected) {
-    allowUninstallation();
-  }
+  // Protection is always on; uninstallation is only re-enabled by the sanctioned
+  // password-protected exit (disableProtection → allowUninstallation).
 }
 
 // ── Theme ──────────────────────────────────────────────────────────────────
@@ -223,17 +221,55 @@ function cleanHosts() {
 }
 
 // ── Auto-start ─────────────────────────────────────────────────────────────
+// The legacy auto-start toggle. Protection is now always on (see hardenPersistence),
+// so disabling auto-start only removes the on-logon launcher; the per-minute guard
+// task and the other autostart vectors keep the app alive while the session is active.
 function setAutoStart(enabled) {
   const exe = `\"${process.execPath}\" --hidden`;
   if (enabled) {
     exec(`schtasks /create /tn "STRIPARCO" /tr "${exe.replace(/"/g, '\\"')}" /sc onlogon /rl highest /f`, err => {
       if (err) exec(`reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /t REG_SZ /d "${exe.replace(/"/g, '\\"')}" /f`);
     });
-    preventUninstallation();
   } else {
     exec('schtasks /delete /tn "STRIPARCO" /f');
     exec('reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /f');
   }
+}
+
+// ── Persistence (anti-uninstall / anti-stop) ────────────────────────────────
+// Establishes multiple, mutually reinforcing survival mechanisms. Re-run periodically
+// so removing any single vector is repaired automatically while the app is alive.
+// NOTE: the install directory is deliberately NOT ACL-locked so that the normal
+// installer-based update flow keeps working (a new installer can overwrite files).
+function hardenPersistence() {
+  if (app.isQuitting) return;
+  const exeQuoted = `\"${process.execPath}\" --hidden`.replace(/"/g, '\\"');
+
+  // 1) On-logon launcher (survives reboot / logon).
+  exec(`schtasks /create /tn "STRIPARCO" /tr "${exeQuoted}" /sc onlogon /rl highest /f`, () => {});
+
+  // 2) Per-minute "guard" task: relaunches the app within ~60 s of any kill. Because it is
+  //    a scheduled task, it cannot be stopped by killing the process tree, and deleting it
+  //    requires administrator rights. The single-instance lock makes a redundant launch a
+  //    no-op while the app is already running.
+  exec(`schtasks /create /tn "STRIPARCO_Guard" /tr "${exeQuoted}" /sc minute /mo 1 /rl highest /f`, () => {});
+
+  // 3) Registry Run keys (machine + user) as additional logon vectors.
+  exec(`reg add "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /t REG_SZ /d "${exeQuoted}" /f`, () => {});
+  exec(`reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /t REG_SZ /d "${exeQuoted}" /f`, () => {});
+
+  // 4) Hide from Control Panel / Settings and remove the uninstaller.
+  preventUninstallation();
+}
+
+// Sanctioned teardown — only reached through the password-protected exit (doExit).
+// Removes every persistence vector so the owner can fully remove the app afterwards.
+function disableProtection() {
+  exec('schtasks /delete /tn "STRIPARCO" /f', () => {});
+  exec('schtasks /delete /tn "STRIPARCO_Guard" /f', () => {});
+  exec('reg delete "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /f', () => {});
+  exec('reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /f', () => {});
+  allowUninstallation();
 }
 
 function preventUninstallation() {
@@ -493,6 +529,11 @@ function startTimers() {
   setInterval(() => {
     updateHosts();
   }, 5 * 60 * 1000);
+
+  // Self-repair persistence: re-create any autostart / guard vector that was removed.
+  setInterval(() => {
+    if (!app.isQuitting) hardenPersistence();
+  }, 3 * 60 * 1000);
 }
 
 function onLimitReached() {
@@ -683,6 +724,9 @@ async function protectExit() {
 function doExit() {
   app.isQuitting = true;
   stopLockoutEnforcer();
+  // Tear down every persistence vector so the sanctioned (password-protected) exit
+  // genuinely stops the app instead of being resurrected by the guard task.
+  disableProtection();
   // Kill the watchdog BEFORE quitting, so it doesn't restart us
   if (watchdogProcess) {
     try { process.kill(watchdogProcess.pid); } catch(e) {}
@@ -690,7 +734,8 @@ function doExit() {
   }
   try { fs.unlinkSync(PID_FILE); } catch(e) {}
   cleanHosts();
-  app.quit();
+  // Give the teardown commands (schtasks / reg) a moment to complete before quitting.
+  setTimeout(() => app.quit(), 1000);
 }
 
 ipcMain.on('confirmed-exit', () => doExit());
@@ -832,8 +877,8 @@ else {
     loadConfig();
     applyTheme();
     updateHosts();
-    if (config.auto_start) setAutoStart(true);
-    if (config.password_protected) preventUninstallation();
+    if (config.auto_start === false) setAutoStart(false); else setAutoStart(true);
+    hardenPersistence();
     createTray();
 
     if (!process.argv.includes('--hidden')) {

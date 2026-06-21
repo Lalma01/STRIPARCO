@@ -37,7 +37,7 @@ Two protections work together:
 | **Password-protected settings** | When a password is set, the **main process** (not just the UI) requires it to change the screen-time limit, auto-start or the custom blocklist, and to add time or exit. **Theme and language stay changeable without the password** (cosmetic, safe). |
 | **Theme** | Follows the Windows light/dark setting automatically; can be forced to Light or Dark in Settings. |
 | **Bilingual UI** | English / Hungarian, auto-detected on first run, switchable in Settings. |
-| **Persistence** | A watchdog process restarts the app if it is killed; the uninstaller entry is hidden while protection is active. |
+| **Persistence (anti-uninstall)** | Always-on. Multiple mutually reinforcing vectors: an in-process watchdog for instant restart, a **per-minute scheduled "guard" task** that resurrects the app within ~60 s of any kill (it cannot be stopped by killing the process tree), on-logon task + machine/user Run keys, removal of the Control Panel uninstall entry and the uninstaller, and periodic self-repair of all of the above. The install folder is **not** ACL-locked, so installer-based updates keep working. Only the password-protected **Exit** tears persistence down. |
 | **Privacy** | No telemetry, no network calls, no logging of browsing to disk beyond a local block counter. |
 
 ---
@@ -218,7 +218,7 @@ Két védelem dolgozik együtt:
 | **Jelszóvédett beállítások** | Ha van jelszó, a **fő folyamat** (nem csak a felület) megköveteli azt a képernyőidő-korlát, az automatikus indítás és az egyéni tiltólista módosításához, valamint idő hozzáadásához és kilépéshez. A **téma és a nyelv jelszó nélkül is módosítható** (kozmetikai, biztonságos). |
 | **Téma** | Automatikusan követi a Windows világos/sötét beállítását; a Beállításokban kézzel Világosra vagy Sötétre is állítható. |
 | **Kétnyelvű felület** | Magyar / angol, első indításkor automatikus felismeréssel, a Beállításokban váltható. |
-| **Védelem** | Egy watchdog folyamat újraindítja az alkalmazást, ha leállítják; az eltávolító bejegyzés rejtve van, amíg a védelem aktív. |
+| **Védelem (eltávolítás elleni)** | Mindig aktív. Több, egymást erősítő mechanizmus: folyamaton belüli watchdog az azonnali újraindításhoz, egy **percenkénti ütemezett „őr” feladat**, amely bármilyen leállítás után ~60 mp-en belül visszahozza az alkalmazást (a folyamatfa kilövésével nem állítható le), bejelentkezéskori feladat + gépi/felhasználói Run kulcsok, a Vezérlőpult eltávolító bejegyzésének és az uninstallernek a törlése, valamint mindezek időszakos önjavítása. A telepítőmappa **nincs** ACL-zárolva, így a telepítőalapú frissítés továbbra is működik. A védelmet csak a jelszóval védett **Kilépés** bontja le. |
 | **Adatvédelem** | Nincs telemetria, nincs hálózati hívás, a böngészésből csak egy helyi számláló kerül lemezre. |
 
 ---
