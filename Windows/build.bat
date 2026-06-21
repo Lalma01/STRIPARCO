@@ -18,12 +18,11 @@ node app\version_bump.js
 if %errorlevel% neq 0 ( echo HIBA: Verzió növelése sikertelen! & pause & exit /b 1 )
 
 echo.
-echo [2/3] Ikon konvertalo ellenorzese...
+echo [2/3] Ikon ellenorzese...
 if not exist assets mkdir assets
 if not exist assets\icons\win\icon.ico (
   echo FIGYELEM: assets\icons\win\icon.ico nem talalhato!
   echo Helyezz el egy icon.ico fajlt az assets\icons\win mappaba, majd futtasd ujra.
-  echo A PNG auto-konverziohoz telepitsd: npm install -g electron-icon-builder
   pause & exit /b 1
 )
 

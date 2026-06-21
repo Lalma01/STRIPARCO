@@ -1,6 +1,6 @@
 {
   "name": "striparco",
-  "version": "1.12.15",
+  "version": "1.12.17",
   "description": "STRIPARCO – Windows NSFW / NSFW-AI content filter & screen time guard",
   "author": "STRIPARCO",
   "main": "app/main.js",
@@ -53,8 +53,7 @@
     "node-windows": "^1.0.0-beta.8"
   },
   "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.13.3",
-    "electron-icon-builder": "^2.0.1"
+    "electron": "^42.4.1",
+    "electron-builder": "^26.15.3"
   }
 }
