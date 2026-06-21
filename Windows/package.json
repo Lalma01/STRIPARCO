@@ -11,6 +11,7 @@
   "build": {
     "appId": "com.striparco.app",
     "productName": "STRIPARCO",
+    "asar": false,
     "directories": {
       "buildResources": "assets",
       "output": "dist"
@@ -47,6 +48,9 @@
       "uninstallerIcon": "assets/icons/win/icon.ico",
       "installerHeaderIcon": "assets/icons/win/icon.ico"
     }
+  },
+  "dependencies": {
+    "node-windows": "^1.0.0-beta.8"
   },
   "devDependencies": {
     "electron": "^28.0.0",

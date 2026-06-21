@@ -4,6 +4,8 @@ const path = require('path');
 const fs   = require('fs');
 const crypto = require('crypto');
 const { exec, spawn } = require('child_process');
+const P = require('./protection');
+const { ensureServiceInstalled, removeService } = require('./service_control');
 
 // ── Paths ──────────────────────────────────────────────────────────────────
 const HOSTS_FILE    = 'C:\\Windows\\System32\\drivers\\etc\\hosts';
@@ -12,8 +14,6 @@ const MARKER_END    = '# === STRIPARCO END ===';
 const CONFIG_PATH   = path.join(app.getPath('userData'), 'config.json');
 const PRELOAD       = path.join(__dirname, 'preload.js');
 const BLOCKED_HTML_PATH = path.join(app.getPath('userData'), 'blocked.html');
-const PID_FILE          = path.join(app.getPath('userData'), 'cb.pid');
-const APP_ID            = 'com.striparco.app';
 
 // Pause screen-time counting after this many seconds of inactivity (covers monitor
 // power-off / idle). Lock and suspend pause immediately via power-monitor events.
@@ -118,7 +118,6 @@ let screenTimePaused = false;
 let lastNotifKey = '', lastNotifTime = 0;
 let warned15 = false, warned5 = false, warned1 = false;
 let lastCloseOthers = 0;
-let watchdogProcess = null;
 let lockoutEnforcer = null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -162,25 +161,13 @@ function loadConfig() {
   }
   screenTimeSecondsUsed = config.screen_time_used || 0;
   // Protection is always on; uninstallation is only re-enabled by the sanctioned
-  // password-protected exit (disableProtection → allowUninstallation).
+  // password-protected exit (disableProtection → removeProtection).
 }
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 function applyTheme() {
   const t = config.theme || 'system';
   nativeTheme.themeSource = (t === 'light' || t === 'dark') ? t : 'system';
-}
-
-function allowUninstallation() {
-  const keys = [
-    `HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_ID}`,
-    `HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_ID}`
-  ];
-  keys.forEach(key => {
-    exec(`reg delete "${key}" /v "NoRemove" /f`, () => {});
-    exec(`reg delete "${key}" /v "NoModify" /f`, () => {});
-    exec(`reg delete "${key}" /v "SystemComponent" /f`, () => {});
-  });
 }
 
 function saveConfig() {
@@ -221,90 +208,37 @@ function cleanHosts() {
 }
 
 // ── Auto-start ─────────────────────────────────────────────────────────────
-// The legacy auto-start toggle. Protection is now always on (see hardenPersistence),
-// so disabling auto-start only removes the on-logon launcher; the per-minute guard
-// task and the other autostart vectors keep the app alive while the session is active.
-function setAutoStart(enabled) {
-  const exe = `\"${process.execPath}\" --hidden`;
-  if (enabled) {
-    exec(`schtasks /create /tn "STRIPARCO" /tr "${exe.replace(/"/g, '\\"')}" /sc onlogon /rl highest /f`, err => {
-      if (err) exec(`reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /t REG_SZ /d "${exe.replace(/"/g, '\\"')}" /f`);
-    });
-  } else {
-    exec('schtasks /delete /tn "STRIPARCO" /f');
-    exec('reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /f');
-  }
-}
+// Protection is always on: the per-minute guard task (created in protection.js)
+// already relaunches the app at logon, so this toggle is now only a stored user
+// preference and intentionally creates no competing autostart vector.
+function setAutoStart(_enabled) { /* guard task handles startup; see hardenPersistence */ }
 
 // ── Persistence (anti-uninstall / anti-stop) ────────────────────────────────
-// Establishes multiple, mutually reinforcing survival mechanisms. Re-run periodically
-// so removing any single vector is repaired automatically while the app is alive.
-// NOTE: the install directory is deliberately NOT ACL-locked so that the normal
-// installer-based update flow keeps working (a new installer can overwrite files).
+// One strong core + one light backup, instead of the former five overlapping
+// vectors:
+//   • LocalSystem guard SERVICE → re-applies the tamper protection every ~20 s
+//     and survives reboots; it runs as SYSTEM so it can re-lock the install dir
+//     and re-hide the uninstall entry even against an admin.
+//   • A single per-minute guard TASK → keeps the GUI alive in the user session
+//     (a service cannot easily launch an interactive window).
+// preventUninstallation()/applyProtection() are idempotent, so the periodic
+// self-heal in startTimers() simply tops them up while the GUI is alive.
 function hardenPersistence() {
   if (app.isQuitting) return;
-  const exeQuoted = `\"${process.execPath}\" --hidden`.replace(/"/g, '\\"');
-
-  // 1) On-logon launcher (survives reboot / logon).
-  exec(`schtasks /create /tn "STRIPARCO" /tr "${exeQuoted}" /sc onlogon /rl highest /f`, () => {});
-
-  // 2) Per-minute "guard" task: relaunches the app within ~60 s of any kill. Because it is
-  //    a scheduled task, it cannot be stopped by killing the process tree, and deleting it
-  //    requires administrator rights. The single-instance lock makes a redundant launch a
-  //    no-op while the app is already running.
-  exec(`schtasks /create /tn "STRIPARCO_Guard" /tr "${exeQuoted}" /sc minute /mo 1 /rl highest /f`, () => {});
-
-  // 3) Registry Run keys (machine + user) as additional logon vectors.
-  exec(`reg add "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /t REG_SZ /d "${exeQuoted}" /f`, () => {});
-  exec(`reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /t REG_SZ /d "${exeQuoted}" /f`, () => {});
-
-  // 4) Hide from Control Panel / Settings and remove the uninstaller.
-  preventUninstallation();
+  ensureServiceInstalled();
+  P.applyProtection();
 }
 
 // Sanctioned teardown — only reached through the password-protected exit (doExit).
-// Removes every persistence vector so the owner can fully remove the app afterwards.
+// Removes every protection vector so the owner can fully remove the app afterwards.
 function disableProtection() {
-  exec('schtasks /delete /tn "STRIPARCO" /f', () => {});
-  exec('schtasks /delete /tn "STRIPARCO_Guard" /f', () => {});
-  exec('reg delete "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /f', () => {});
-  exec('reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "STRIPARCO" /f', () => {});
-  allowUninstallation();
+  removeService();
+  P.removeProtection();
 }
 
 function preventUninstallation() {
-  const keys = [
-    `HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_ID}`,
-    `HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${APP_ID}`
-  ];
-  // Remove entire uninstall registry keys so app is invisible in Control Panel & Settings
-  keys.forEach(key => {
-    exec(`reg delete "${key}" /f`, () => {});
-  });
-
-  // Delete uninstaller exe from install directory
-  deleteUninstallerExe();
-}
-
-function deleteUninstallerExe() {
-  const installDir = path.dirname(process.execPath);
-  try {
-    const files = fs.readdirSync(installDir);
-    for (const f of files) {
-      const lo = f.toLowerCase();
-      if (lo.includes('uninstall') && lo.endsWith('.exe')) {
-        const fp = path.join(installDir, f);
-        try { fs.unlinkSync(fp); } catch(e) {
-          // If locked, try renaming then deleting on reboot
-          try {
-            const tmp = fp + '.del';
-            fs.renameSync(fp, tmp);
-            exec(`cmd /c del /f /q "${tmp}"`);
-          } catch(e2) {}
-        }
-      }
-    }
-  } catch(e) {}
+  P.hideUninstall();
+  P.lockInstallDir();
 }
 
 // ── Browser title monitor ──────────────────────────────────────────────────
@@ -724,18 +658,14 @@ async function protectExit() {
 function doExit() {
   app.isQuitting = true;
   stopLockoutEnforcer();
-  // Tear down every persistence vector so the sanctioned (password-protected) exit
-  // genuinely stops the app instead of being resurrected by the guard task.
+  // Tear down every protection vector so the sanctioned (password-protected) exit
+  // genuinely stops the app instead of being resurrected by the guard task/service.
   disableProtection();
-  // Kill the watchdog BEFORE quitting, so it doesn't restart us
-  if (watchdogProcess) {
-    try { process.kill(watchdogProcess.pid); } catch(e) {}
-    watchdogProcess = null;
-  }
-  try { fs.unlinkSync(PID_FILE); } catch(e) {}
   cleanHosts();
-  // Give the teardown commands (schtasks / reg) a moment to complete before quitting.
-  setTimeout(() => app.quit(), 1000);
+  // The guard service re-applies protection every ~20 s, so once its uninstall has
+  // had time to complete, tear the protection down once more (clearing anything it
+  // may have re-created) and only then quit.
+  setTimeout(() => { P.removeProtection(); setTimeout(() => app.quit(), 800); }, 2500);
 }
 
 ipcMain.on('confirmed-exit', () => doExit());
@@ -890,37 +820,12 @@ else {
 
     // Add signal handler for graceful termination (e.g., system shutdown)
     process.on('SIGTERM', () => { saveConfig(); });
-
-    // Persistence: write our PID so the watchdog can track us, and keep a watchdog alive.
-    try { fs.writeFileSync(PID_FILE, String(process.pid), 'utf8'); } catch(e) {}
-    ensureWatchdog();
   });
-
-  // Spawn the watchdog if one isn't running; respawn it automatically if it dies.
-  function ensureWatchdog() {
-    if (app.isQuitting) return;
-    if (watchdogProcess) return; // never run more than one watchdog at a time
-    const watchdogPath = path.join(__dirname, 'watchdog.js');
-    watchdogProcess = spawn(process.execPath, [watchdogPath, process.execPath, '--hidden', PID_FILE], {
-      detached: true,
-      stdio: 'ignore',
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
-    });
-    watchdogProcess.on('exit', () => {
-      watchdogProcess = null;
-      // If the watchdog was killed (e.g. via Task Manager) and we're still running, bring it back.
-      if (!app.isQuitting) setTimeout(ensureWatchdog, 1000);
-    });
-    watchdogProcess.unref();
-  }
 
   app.on('window-all-closed', e => e.preventDefault());
   app.on('quit', () => { saveConfig(); });
   app.on('before-quit', () => {
     app.isQuitting = true;
     saveConfig();
-    if (watchdogProcess) {
-      try { process.kill(watchdogProcess.pid); } catch(e) {}
-    }
   });
 }

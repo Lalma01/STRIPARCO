@@ -37,7 +37,7 @@ Two protections work together:
 | **Password-protected settings** | When a password is set, the **main process** (not just the UI) requires it to change the screen-time limit, auto-start or the custom blocklist, and to add time or exit. **Theme and language stay changeable without the password** (cosmetic, safe). |
 | **Theme** | Follows the Windows light/dark setting automatically; can be forced to Light or Dark in Settings. |
 | **Bilingual UI** | English / Hungarian, auto-detected on first run, switchable in Settings. |
-| **Persistence (anti-uninstall)** | Always-on. Multiple mutually reinforcing vectors: an in-process watchdog for instant restart, a **per-minute scheduled "guard" task** that resurrects the app within ~60 s of any kill (it cannot be stopped by killing the process tree), on-logon task + machine/user Run keys, removal of the Control Panel uninstall entry and the uninstaller, and periodic self-repair of all of the above. The install folder is **not** ACL-locked, so installer-based updates keep working. Only the password-protected **Exit** tears persistence down. |
+| **Persistence (anti-uninstall)** | Always-on, with one strong core + one light backup (no kernel driver — that would need EV + MS-attestation signing). **(a) LocalSystem guard service** — boot-started, auto-restarting; as SYSTEM it re-applies the tamper protection every ~20 s. **(b) Per-minute guard task** (pinned to the console user, interactive) — relaunches the GUI within ~60 s of any kill. Protection = NTFS **ACL lock** on the install dir (files can't be deleted) + the Control Panel/Settings uninstall entry **hidden on the real key** (matched by DisplayName, `SystemComponent`+`NoRemove`/`NoModify`). Note: while locked, installer-based updates require the password **Exit** first (which removes the service, ACL lock, uninstall-hide and guard task). |
 | **Privacy** | No telemetry, no network calls, no logging of browsing to disk beyond a local block counter. |
 
 ---
@@ -84,9 +84,11 @@ All program files live in the `Windows/` folder:
 ```
 Windows/
 ├── app/
-│   ├── main.js          Main process: config, hosts, screen-time, lock-out, IPC, tray, watchdog
+│   ├── main.js          Main process: config, hosts, screen-time, lock-out, IPC, tray, protection
 │   ├── preload.js       Context-isolated bridge (window.api)
-│   ├── watchdog.js      Standalone process that relaunches main if it dies
+│   ├── protection.js    Tamper-protection core (ACL lock, uninstall-hide, guard task)
+│   ├── service.js       LocalSystem guard service body (re-applies protection.js)
+│   ├── service_control.js  Installs/removes the guard service (node-windows)
 │   ├── i18n.js          Renderer translations (EN / HU)
 │   ├── theme.css        Single shared stylesheet for every window (auto light/dark)
 │   ├── index.html       Dashboard
@@ -177,7 +179,8 @@ The installer requests administrator rights, which are required to edit the `hos
 |---------|-------------|
 | Sites are not blocked | The app needs administrator rights to write the `hosts` file. Reinstall / run elevated. |
 | A blocked title still shows briefly | The redirect needs the browser window in focus; it retries on the next monitor tick (~1 s). |
-| App reopens after closing | Expected: the watchdog restarts it. Use tray → Exit (with password) to stop it. |
+| App reopens after closing | Expected: the guard task/service restarts it. Use tray → Exit (with password) to stop it permanently. |
+| Cannot uninstall from Settings / Control Panel | Expected: the entry is hidden and the install dir is ACL-locked while protection is on. Use tray → Exit (with password) first, which removes the service, ACL lock and uninstall-hide; then uninstall normally. |
 | Theme does not match Windows | Set theme to **System** in Settings, or pick Light/Dark manually. |
 
 ---
@@ -218,7 +221,7 @@ Két védelem dolgozik együtt:
 | **Jelszóvédett beállítások** | Ha van jelszó, a **fő folyamat** (nem csak a felület) megköveteli azt a képernyőidő-korlát, az automatikus indítás és az egyéni tiltólista módosításához, valamint idő hozzáadásához és kilépéshez. A **téma és a nyelv jelszó nélkül is módosítható** (kozmetikai, biztonságos). |
 | **Téma** | Automatikusan követi a Windows világos/sötét beállítását; a Beállításokban kézzel Világosra vagy Sötétre is állítható. |
 | **Kétnyelvű felület** | Magyar / angol, első indításkor automatikus felismeréssel, a Beállításokban váltható. |
-| **Védelem (eltávolítás elleni)** | Mindig aktív. Több, egymást erősítő mechanizmus: folyamaton belüli watchdog az azonnali újraindításhoz, egy **percenkénti ütemezett „őr” feladat**, amely bármilyen leállítás után ~60 mp-en belül visszahozza az alkalmazást (a folyamatfa kilövésével nem állítható le), bejelentkezéskori feladat + gépi/felhasználói Run kulcsok, a Vezérlőpult eltávolító bejegyzésének és az uninstallernek a törlése, valamint mindezek időszakos önjavítása. A telepítőmappa **nincs** ACL-zárolva, így a telepítőalapú frissítés továbbra is működik. A védelmet csak a jelszóval védett **Kilépés** bontja le. |
+| **Védelem (eltávolítás elleni)** | Mindig aktív, egy erős mag + egy könnyű tartalék (kernel-driver nélkül – az EV + Microsoft attestation-aláírást igényelne). **(a) LocalSystem guard-szolgáltatás** – boot-időben indul, automatikusan újraindul; SYSTEM-ként ~20 mp-enként újra-alkalmazza a védelmet. **(b) Percenkénti guard feladat** (a konzol-felhasználóhoz kötve, interaktívan) – bármilyen leállítás után ~60 mp-en belül visszahozza a GUI-t. A védelem: NTFS **ACL-zár** a telepítőmappán (a fájlok nem törölhetők) + a Vezérlőpult/Gépház eltávolító bejegyzésének **elrejtése a valódi kulcson** (DisplayName szerint, `SystemComponent`+`NoRemove`/`NoModify`). Megjegyzés: zárolt állapotban a telepítőalapú frissítéshez előbb a jelszavas **Kilépés** kell (ez eltávolítja a szolgáltatást, az ACL-zárat, az uninstall-rejtést és a guard feladatot). |
 | **Adatvédelem** | Nincs telemetria, nincs hálózati hívás, a böngészésből csak egy helyi számláló kerül lemezre. |
 
 ---
@@ -265,9 +268,11 @@ Minden programfájl a `Windows/` mappában van:
 ```
 Windows/
 ├── app/
-│   ├── main.js          Fő folyamat: beállítások, hosts, képernyőidő, zárolás, IPC, tálca, watchdog
+│   ├── main.js          Fő folyamat: beállítások, hosts, képernyőidő, zárolás, IPC, tálca, védelem
 │   ├── preload.js       Kontextus-izolált híd (window.api)
-│   ├── watchdog.js      Önálló folyamat, amely újraindítja a fő folyamatot, ha leáll
+│   ├── protection.js    Védelmi mag (ACL-zár, uninstall-elrejtés, guard task)
+│   ├── service.js       LocalSystem guard-szolgáltatás törzse (protection.js újra-alkalmazás)
+│   ├── service_control.js  A guard-szolgáltatás telepítése/eltávolítása (node-windows)
 │   ├── i18n.js          Renderer fordítások (EN / HU)
 │   ├── theme.css        Egyetlen közös stíluslap minden ablakhoz (automatikus világos/sötét)
 │   ├── index.html       Vezérlőpult
@@ -359,5 +364,6 @@ A telepítő rendszergazdai jogot kér, amely a `hosts` fájl módosításához 
 |-------|---------------|
 | Az oldalak nem blokkolódnak | Az alkalmazásnak rendszergazdai jog kell a `hosts` íráshoz. Telepítsd újra / futtasd emelt jogon. |
 | Egy tiltott cím rövid ideig még látszik | Az átirányításhoz a böngészőablaknak fókuszban kell lennie; a következő figyelési körben (~1 mp) újrapróbálja. |
-| Az alkalmazás bezárás után újranyílik | Ez normális: a watchdog újraindítja. Leállítás: tálca → Kilépés (jelszóval). |
+| Az alkalmazás bezárás után újranyílik | Ez normális: a guard task/szolgáltatás újraindítja. Végleges leállítás: tálca → Kilépés (jelszóval). |
+| Nem tudom eltávolítani a Gépházból / Vezérlőpultból | Ez szándékos: a bejegyzés rejtve van, a telepítőmappa ACL-zárolt, amíg a védelem aktív. Előbb tálca → Kilépés (jelszóval) – ez eltávolítja a szolgáltatást, az ACL-zárat és az uninstall-rejtést –, utána normálisan eltávolítható. |
 | A téma nem egyezik a Windows-zal | Állítsd a témát **Rendszer szerint**-re a Beállításokban, vagy válassz kézzel Világos/Sötét értéket. |
